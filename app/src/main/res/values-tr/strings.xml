@@ -136,4 +136,5 @@
     <string name="toast_video_exported_to_gallery_succ">Video Galeri\'ye başarıyla aktarıldı!</string>
     <string name="toast_failed_to_save_video_to_galler">Video Galeri\'ye kaydedilemedi</string>
     <string name="toast_export_cancelled">Dışa aktarma iptal edildi</string>
+    <string name="str_view_third_party_software_licenses">Üçüncü taraf yazılım lisanslarını görüntüle</string>
 </resources>
