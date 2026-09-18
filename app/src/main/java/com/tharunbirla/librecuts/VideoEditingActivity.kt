@@ -980,6 +980,8 @@ class VideoEditingActivity : AppCompatActivity() {
             gestures.currentFrame = { activeClipFrame }
             gestures.referenceSize = { clipFrameReference.width() to clipFrameReference.height() }
             gestures.onTap = { handleVideoTap() }
+            // Reproduciendo, syncUiWithPlayer reaplica cada 50 ms el encuadre guardado y pelearía con el dedo.
+            gestures.onTransformStart = { if (::player.isInitialized && player.isPlaying) player.pause() }
             gestures.onFrameChanging = { applyClipFramePreview(it) }
             gestures.onFrameCommitted = { frame ->
                 selectedVideoIndex?.let { viewModel.updateClipFrame(it, frame) }
@@ -5328,6 +5330,9 @@ class VideoEditingActivity : AppCompatActivity() {
                     }
                     if (state == Player.STATE_READY) {
                         isVideoLoaded = true
+                        // El recorte ya fijó la referencia antes de que el video cargara; sin esto, un
+                        // proyecto guardado con encuadre abriría sin él hasta el primer seek.
+                        refreshClipFramePreview()
                         val totalDuration = getTotalSequenceDuration()
                         customVideoSeeker.setVideoDuration(totalDuration)
                         timeRulerView.setVideoDuration(totalDuration)

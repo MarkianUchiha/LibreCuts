@@ -86,6 +86,64 @@ class ClipFrameGestureTest {
     }
 
     @Test
+    fun theFingerLeftAfterAPinchKeepsDraggingWithoutJumping() {
+        instrumentation.runOnMainSync {
+            val (view, log) = createView()
+            val downTime = SystemClock.uptimeMillis()
+            var time = downTime
+            val pointer1 = 1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT
+            // Dos dedos quietos (sin pellizco), se levanta el segundo y el primero arrastra 100 px.
+            sendMulti(view, MotionEvent.ACTION_DOWN, downTime, time, listOf(300f)); time += 16
+            sendMulti(view, MotionEvent.ACTION_POINTER_DOWN or pointer1, downTime, time, listOf(300f, 700f)); time += 16
+            sendMulti(view, MotionEvent.ACTION_POINTER_UP or pointer1, downTime, time, listOf(300f, 700f)); time += 16
+            for (i in 1..10) {
+                sendMulti(view, MotionEvent.ACTION_MOVE, downTime, time, listOf(300f + 10f * i)); time += 16
+            }
+            sendMulti(view, MotionEvent.ACTION_UP, downTime, time, listOf(400f))
+
+            // El primer MOVE tras el cambio de dedos solo reancla: se pierden 10 px, no brinca.
+            assertEquals(0.09f, log.committed.single().offsetX, 0.015f)
+        }
+    }
+
+    @Test
+    fun cancelCommitsWhatWasAlreadyMoved() {
+        instrumentation.runOnMainSync {
+            val (view, log) = createView()
+            val t = SystemClock.uptimeMillis()
+            send(view, MotionEvent.ACTION_DOWN, 500f, 300f, t, t)
+            for (i in 1..10) send(view, MotionEvent.ACTION_MOVE, 500f + 10f * i, 300f, t, t + i * 16L)
+            send(view, MotionEvent.ACTION_CANCEL, 600f, 300f, t, t + 200)
+            assertEquals(0.1f, log.committed.single().offsetX, 0.01f)
+        }
+    }
+
+    @Test
+    fun aGestureThatEndsWhereItStartedLeavesNoHistoryEntry() {
+        instrumentation.runOnMainSync {
+            val (view, log) = createView()
+            val t = SystemClock.uptimeMillis()
+            send(view, MotionEvent.ACTION_DOWN, 500f, 300f, t, t)
+            for (i in 1..10) send(view, MotionEvent.ACTION_MOVE, 500f + 10f * i, 300f, t, t + i * 16L)
+            for (i in 9 downTo 0) send(view, MotionEvent.ACTION_MOVE, 500f + 10f * i, 300f, t, t + (20 - i) * 16L)
+            send(view, MotionEvent.ACTION_UP, 500f, 300f, t, t + 400)
+            assertTrue("volver al punto de partida no es un cambio", log.committed.isEmpty())
+        }
+    }
+
+    @Test
+    fun gestureStartIsReportedOncePerTransform() {
+        instrumentation.runOnMainSync {
+            val (view, log) = createView()
+            var starts = 0
+            view.onTransformStart = { starts++ }
+            drag(view, from = 500f to 300f, to = 700f to 300f)
+            tap(view, 500f, 300f)
+            assertEquals("solo el arrastre avisa (para pausar el player), el toque no", 1, starts)
+        }
+    }
+
+    @Test
     fun transformIsIgnoredWhenTheClipIsNotSelectedButTapStillWorks() {
         instrumentation.runOnMainSync {
             val (view, log) = createView(canTransform = false)

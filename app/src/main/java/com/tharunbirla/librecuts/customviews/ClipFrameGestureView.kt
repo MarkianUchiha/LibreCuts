@@ -36,10 +36,13 @@ class ClipFrameGestureView @JvmOverloads constructor(
     var referenceSize: () -> Pair<Float, Float> = { width.toFloat() to height.toFloat() }
 
     var onTap: (() -> Unit)? = null
+    /** Primer cambio de un gesto de encuadre; la Activity pausa el player para que no pelee con el dedo. */
+    var onTransformStart: (() -> Unit)? = null
     var onFrameChanging: ((ClipFrame) -> Unit)? = null
     var onFrameCommitted: ((ClipFrame) -> Unit)? = null
 
     private var isTransforming = false
+    private var startFrame = ClipFrame()
     private var working = ClipFrame()
     private var changed = false
 
@@ -95,7 +98,8 @@ class ClipFrameGestureView @JvmOverloads constructor(
             if (!canHandle()) return false
             // Se decide una vez por gesto: si el clip se selecciona a mitad del gesto, este no encuadra.
             isTransforming = canTransform()
-            working = currentFrame() ?: ClipFrame()
+            startFrame = currentFrame() ?: ClipFrame()
+            working = startFrame
             changed = false
             isDragging = false
             resetDragAnchor = false
@@ -114,7 +118,8 @@ class ClipFrameGestureView @JvmOverloads constructor(
                 dragTo(event.x, event.y)
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                if (isTransforming && changed) onFrameCommitted?.invoke(working)
+                // Comparar contra el inicio: ir y volver al mismo punto no debe dejar una entrada vacía de deshacer.
+                if (isTransforming && changed && !sameFrame(working, startFrame)) onFrameCommitted?.invoke(working)
                 isTransforming = false
             }
         }
@@ -150,9 +155,16 @@ class ClipFrameGestureView @JvmOverloads constructor(
             offsetX = frame.offsetX.coerceIn(-ClipFrame.MAX_OFFSET, ClipFrame.MAX_OFFSET),
             offsetY = frame.offsetY.coerceIn(-ClipFrame.MAX_OFFSET, ClipFrame.MAX_OFFSET)
         )
+        if (!changed) onTransformStart?.invoke()
         changed = true
         onFrameChanging?.invoke(working)
     }
+
+    // Con tolerancia: ir y volver suma y resta floats y puede dejar residuos como 1e-8.
+    private fun sameFrame(a: ClipFrame, b: ClipFrame): Boolean =
+        kotlin.math.abs(a.scale - b.scale) < 1e-4f &&
+            kotlin.math.abs(a.offsetX - b.offsetX) < 1e-4f &&
+            kotlin.math.abs(a.offsetY - b.offsetY) < 1e-4f
 
     private fun safeDiv(delta: Float, size: Float): Float = if (size > 0f) delta / size else 0f
 }
