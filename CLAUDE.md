@@ -1,0 +1,141 @@
+# LibreCuts (fork) — memoria del proyecto
+
+Editor de video Android, FOSS, 100% local. Fork de `tharunbirla/LibreCuts` (remote `upstream`); el nuestro es `origin` (`MarkianUchiha/LibreCuts`).
+Distribución upstream: GitHub Releases, F-Droid, Obtainium (no Play Store).
+
+Todo lo de este archivo se verificó contra el código el 2026-09-17. Lo que no se pudo confirmar está en **No confirmado**.
+
+## Comandos (los mismos que corre CI en `.github/workflows/ci.yml`)
+
+```bash
+./gradlew assembleDebug        # build
+./gradlew lintDebug            # lint
+./gradlew testDebugUnitTest    # unit tests (hoy solo el template 2+2)
+```
+
+- JDK 17 obligatorio (CI usa Temurin 17).
+- `local.properties` (gitignored) necesita `sdk.dir` con **slashes normales**: `sdk.dir=C:/Users/.../Android/Sdk`. Con `\U` sin escapar Gradle falla con `Malformed \uxxxx encoding`.
+- El build de debug genera 3 APKs por ABI (`splits.abi`: armeabi-v7a, arm64-v8a, x86_64; sin universal).
+
+## Versiones confirmadas
+
+| Pieza | Versión | Fuente |
+|---|---|---|
+| Gradle wrapper | 8.9 | `gradle/wrapper/gradle-wrapper.properties` |
+| AGP | 8.7.1 | `gradle/libs.versions.toml` |
+| Kotlin (plugin y stdlib resuelta) | 2.0.21 | `libs.versions.toml` + `dependencies` |
+| kotlinx-coroutines | 1.8.1 (**transitiva**, no declarada) | `:app:dependencies` |
+| compileSdk / targetSdk / minSdk | 34 / 34 / 26 | `app/build.gradle` |
+| Java target | 17 | `app/build.gradle` |
+| ExoPlayer | **2.19.1 legacy** (`com.google.android.exoplayer2`), NO Media3 | `app/build.gradle` |
+| ffmpeg-kit | `com.antonkarpenko:ffmpeg-kit-full-gpl:2.1.0` → **FFmpeg 8.0** | POM de Maven Central + binario |
+| Material | declarada 1.9.0, **resuelve 1.12.0** (la sube aboutlibraries) | `:app:dependencies` |
+| Lottie | 3.4.0 | `app/build.gradle` |
+| Gson | 2.10.1 | `app/build.gradle` |
+| AboutLibraries | 11.2.3 (plugin por `buildscript`, no por catálogo) | `build.gradle` raíz |
+| Lifecycle (ViewModel/runtime) | 2.8.6 | `libs.versions.toml` |
+
+Las dependencias están mezcladas: unas en el catálogo `libs.versions.toml`, otras hardcodeadas en `app/build.gradle`. Si agregas una nueva, va al catálogo.
+
+## ffmpeg-kit: qué binario es
+
+- **No** es el original `com.arthenica` (archivado en GitHub). Es el fork mantenido de Anton Karpenko (`sk3llo/ffmpeg_kit_flutter`, activo en 2026), publicado en Maven Central.
+- **Paquete Java distinto**: `com.antonkarpenko.ffmpegkit.*` (no `com.arthenica.ffmpegkit.*`). La API es la misma que la de arthenica; al copiar ejemplos, cambia el import.
+- **No hay `.aar` en el repo** (`app/libs/` no existe). El wiki upstream ("Developer Setup") está desactualizado en eso.
+- Versiones más nuevas del fork: 2.2.0 / 2.2.1 → FFmpeg 8.1.1. No se ha evaluado subir.
+- ABIs en el `.aar`: arm64-v8a, armeabi-v7a (+ variantes `_neon`), x86, x86_64.
+
+### Capacidades verificadas en el binario (arm64, `libavfilter.so` / `libavcodec.so`)
+
+Configure: `--enable-gpl --enable-version3 --enable-mediacodec` + libx264, libx265, libmp3lame, libass, libfreetype, libfontconfig, libfribidi, libharfbuzz, libvidstab, librubberband, libzimg, libopus, libvpx, libaom, libdav1d, libwebp, libtesseract, libsoxr, libsrt, libopenh264, entre otras.
+
+- Filtros presentes: `xfade`, `acrossfade`, `overlay`, `colorkey`, `chromakey`, `drawtext`, `subtitles`, `ass`, `vidstabdetect`/`vidstabtransform`, `rubberband`, `zscale`, `lut3d`, `gblur`, `boxblur`, `loudnorm`, `afade`, `sidechaincompress`, `colorchannelmixer`, `geq`, `curves`, `atempo`, `reverse`/`areverse`, `ocr`, `colordetect`.
+- Encoders presentes: `h264_mediacodec`, `hevc_mediacodec`, `libx264`, `libx265`, `libmp3lame`, `aac`, `libopus`, `libvpx`, `libvpx-vp9`, `libaom-av1`, `libwebp`, `gif`, `libopenh264`.
+- **Regla**: antes de usar un filtro/encoder que no esté en esta lista, verifícalo en el binario (extraer el `.aar` de `~/.gradle/caches/modules-2/files-2.1/com.antonkarpenko/` y buscar el nombre en `jni/arm64-v8a/libavfilter.so`). `--enable-small` está activo: los textos de ayuda de los filtros vienen recortados.
+
+### Licencia — ojo
+
+El repo es MIT, pero enlaza un FFmpeg `--enable-gpl --enable-version3` (GPLv3). El APK distribuido es, en la práctica, GPLv3. No cambies a `ffmpeg-kit-full` (LGPL) sin revisar: se pierde `libx264`, que es el fallback de software del export.
+
+## Arquitectura
+
+Módulo único `:app`, paquete `com.tharunbirla.librecuts` (`app/src/main/java/com/tharunbirla/librecuts/`). MVVM "lite": ViewModel + `StateFlow`, sin DI (ni Hilt ni Koin), sin Repository.
+
+| Ruta | Qué vive ahí |
+|---|---|
+| `VideoEditingActivity.kt` | **God class (~9000 líneas)**: UI del editor, timeline, player, toolbars, arma el export. |
+| `MainActivity.kt` | Launcher, pickers, intents `SEND`/`VIEW`. Única que usa ViewBinding. |
+| `ProjectImportActivity.kt` | Importa `.lcprj`. |
+| `ErrorDisplayActivity.kt` | Pantalla de error (copiar log, compartir, abrir issue en GitHub upstream). |
+| `LibreCutsApplication.kt` | Handler global de crashes → `ErrorDisplayActivity` con LC-500. |
+| `viewmodels/VideoEditingViewModel.kt` | Estado del proyecto, undo/redo, y **construcción de los comandos FFmpeg de export** (`buildConsolidatedFFmpegCommand` l.650, `buildPreviewCommand`, `buildMergeCommand`). |
+| `viewmodels/VideoEditingViewModelExt.kt` | Extension functions de mutación de operaciones. |
+| `models/EditOperation.kt` | `sealed class` con todas las operaciones (Trim, Crop, AddText, Merge, Transition, Subtitles, ...). Es lo que se serializa. |
+| `models/` | `VideoProject`, `EditRecipe`, `MergeItem`, `MaskConfig`, `TextPosition`. |
+| `commands/EditCommand.kt` | Patrón Command para undo/redo. |
+| `services/FFmpegRenderEngine.kt` | **Único punto que ejecuta FFmpeg** para render (excepto `AudioAnalyzer`/`AudioWaveformExtractor`). |
+| `services/ExportService.kt` | Foreground service (`dataSync`) que corre el export, notifica progreso y guarda en galería. |
+| `services/ProxyGenerationService.kt` | Genera proxies (speed/reverse). |
+| `customviews/` | ~14 Custom Views: timeline (`TrackTrimView`, `TimeRulerView`, `CustomVideoSeeker`), overlays draggables, máscara, crop, dibujo libre, bottom sheets. |
+| `utils/` | `ErrorCode`, `ProjectSerializer` (Gson + deserializer polimórfico), `SubtitleParser`, `FontManager`, `AudioAnalyzer`, `AudioWaveformExtractor`, `ViewExtensions`. |
+
+### Flujo de export
+
+1. `VideoEditingActivity` (~l.4752) llama `viewModel.buildConsolidatedFFmpegCommand(...)` → `String` con todo el `-filter_complex`.
+2. Pasa el comando por `Intent` extra (`ExportService.EXTRA_COMMAND`) a `ExportService`.
+3. `ExportService` → `FFmpegRenderEngine.exportFinal(command, totalDurationSecs, onProgress)`.
+4. Progreso vuelve por broadcast (`EXTRA_PROGRESS`, `EXTRA_SAVED_URI`, `EXTRA_ERROR`).
+
+## Patrón FFmpeg (síguelo al agregar funciones)
+
+- **Comandos como `String` único**, concatenado, ejecutado con `FFmpegKit.execute(String)` / `executeAsync(String, ...)`. No se usa `executeWithArguments`. Rutas entre comillas dobles escapadas: `-i \"$path\"`.
+- Grafos complejos: lista `filterParts` de etapas `[in]filtro[out]` unidas con `;` dentro de `-filter_complex "..."`.
+- Texto en `drawtext`: escapar `\` → `\\\\`, `'` → `\\\\'`, `:` → `\\:`. Siempre `fontfile=` con ruta real; `font=` no existe en drawtext (ver KDoc de `FFmpegRenderEngine`).
+- **Subtítulos se queman con `drawtext` por línea**, no con el filtro `subtitles`/libass (aunque el binario lo trae).
+- Ejecución: `withContext(Dispatchers.IO)`. Export async con `suspendCancellableCoroutine`; cancelación vía `FFmpegKit.cancel(sessionId)` en `invokeOnCancellation`.
+- Progreso: `statistics.time` (ms) / duración total esperada.
+- URIs: `file://` → `.path`; `content://` → `FFmpegKitConfig.getSafParameterForRead()`, y si falla, copia a `cacheDir` con extensión según MIME. Para imágenes se fuerza la copia (`resolveUriToFilePath(uri, forceCopy = true)` en `generateVideoFromImage`) porque el demuxer `image2` no entiende `saf:X`.
+- Resultado: `sealed class RenderResult { Success, Failure, Cancelled }`.
+- **Fallback de encoder**: si falla y el comando contiene `h264_mediacodec` → reintenta una vez con `String.replace` a `libx264`; y al revés (`libx264` → `h264_mediacodec -b:v 8M`). Además marca fallo si los logs dicen `video:0kB` / `frame= 0` aunque el return code sea 0.
+- Audio export: `-c:a libmp3lame -b:a 192k` (MP3 real). Video: `aac` para audio.
+
+## UI
+
+- **Views tradicionales + XML. No hay Jetpack Compose** (ni plugin, ni `@Composable`, ni `setContent {}`).
+- 44 layouts en `res/layout/`. Nombres de archivo en snake_case con prefijo por tipo: `activity_*`, `dialog_*`, `item_*`, `bottom_sheet_*` / `*_bottom_sheet_dialog`, `*_editing_toolbar`.
+- **IDs de vista en camelCase** (`btnPlayPause`, `tvErrorCode`; ~500 camel vs ~9 snake). Sigue camelCase.
+- `viewBinding true` está activo pero solo `MainActivity` lo usa. `VideoEditingActivity` usa `findViewById` (~415 llamadas). En código nuevo fuera de esa Activity, usa ViewBinding.
+- Fragments: solo `BottomSheetDialogFragment` para pickers. El resto son Activities + Custom Views.
+- Player: `ExoPlayer` + `StyledPlayerView` (API de ExoPlayer 2).
+- Strings: `res/values/strings.xml` + 16 traducciones (`values-ar, cs, de, el, es, et, hi, in, it, nl, pt-rBR, ru, sk, ta, tr, zh-rCN`) gestionadas por **Weblate** upstream. Solo edita `values/`; las traducciones las hace Weblate.
+- Hay textos hardcodeados en inglés (p. ej. descripciones de `ErrorCode`, algunos diálogos). No agregues más.
+
+## Convenciones de código
+
+- Kotlin `official` (`gradle.properties`). Clases PascalCase, funciones camelCase, backing fields `_foo` + `foo: StateFlow` con `asStateFlow()`.
+- Comentarios upstream en inglés y explican el porqué. Al contribuir a upstream mantén inglés.
+- Logs: `private val TAG = "NombreClase"`.
+
+## Códigos de error (`utils/ErrorCode.kt`, enum)
+
+`LC-101` FFMPEG_EXECUTION_FAILED · `LC-102` FONT_MISSING · `LC-201` FILE_NOT_FOUND · `LC-202` GALLERY_SAVE_FAILED · `LC-301` OUT_OF_MEMORY · `LC-500` UNEXPECTED_CRASH.
+Se muestran en `ErrorDisplayActivity` vía extras `ERROR_CODE`, `ERROR_LOG`, `ERROR_DESCRIPTION`. Si agregas un código, documéntalo también en el wiki (página "Error Codes & Troubleshooting").
+
+## Limitaciones y deuda conocida
+
+- `VideoEditingActivity` de 9000 líneas: cambios ahí, quirúrgicos. No refactorizar en masa.
+- ExoPlayer 2.19.1 está deprecado (reemplazado por AndroidX Media3). Migrar es un cambio grande de imports/API; no mezclar Media3 y ExoPlayer 2.
+- Fallback de encoder por `String.replace`: frágil si una ruta o filtro contiene `libx264`/`h264_mediacodec`.
+- `FFmpegKit.execute(String)` parte el comando por espacios respetando comillas; una ruta con `"` lo rompe. `executeWithArguments(Array)` sería más robusto.
+- `activeSessions` en `FFmpegRenderEngine` es `mutableListOf` (no thread-safe) y se toca desde varios hilos.
+- Tests: `app/src/test` solo tiene el template; `androidTest` tiene `KeyframeOpacityPreviewTest` (custom views). Ningún test cubre la construcción de comandos FFmpeg.
+- Build limpio pero con ~53 warnings de Kotlin (APIs deprecadas: `clipPath(Path, Region.Op)`, `versionCode`, `FLAG_IGNORE_GLOBAL_SETTING`).
+- `minifyEnabled false` en release; `proguard-rules.pro` es el template.
+- Basura en la raíz: `test_exo.kt`, `test_ext.kt`, `test_heavy.kt` (no compilan ni se referencian). `src/images/` en la raíz son imágenes del README, no código.
+- Wiki upstream: no existe página "Tech Stack". Solo Home, User Guide, Developer Setup (desactualizada: habla de `app/libs/ffmpeg-kit.aar`) y Error Codes.
+
+## No confirmado
+
+- La versión exacta de FFmpeg (8.0.x) sale del POM ("FFmpeg v8.0.0 Full-GPL"); el binario no expone la cadena de versión, pero trae `colordetect` (añadido en FFmpeg 8.0), consistente con 8.x.
+- Si `h264_mediacodec` funciona en cada dispositivo: depende del hardware; por eso existe el fallback.
+- Comportamiento de `ProxyGenerationService` más allá de generar proxies de speed/reverse: no revisado a fondo.
