@@ -66,10 +66,20 @@ class DraggableTextOverlayView @JvmOverloads constructor(
     private var currentLineSpacing = 0f
     var currentFontPath: String? = null
 
+    // scaleFactor es el cambio entre dos eventos (~1.01). Si se multiplica y trunca el Int en cada
+    // evento, agrandar nunca suma 1 y achicar siempre resta: el pellizco no agranda y achica de más.
+    // Por eso el tamaño se acumula en Float durante el gesto y solo se redondea para aplicarlo.
+    private var gestureFontSize = 0f
+
     private val scaleDetector = ScaleGestureDetector(context, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+        override fun onScaleBegin(detector: ScaleGestureDetector): Boolean {
+            gestureFontSize = currentFontSize.toFloat()
+            return true
+        }
+
         override fun onScale(detector: ScaleGestureDetector): Boolean {
-            val scaleFactor = detector.scaleFactor
-            val newSize = (currentFontSize * scaleFactor).toInt().coerceIn(12, 2000)
+            gestureFontSize = (gestureFontSize * detector.scaleFactor).coerceIn(12f, 2000f)
+            val newSize = Math.round(gestureFontSize)
             if (newSize != currentFontSize) {
                 setFontSize(newSize)
             }
