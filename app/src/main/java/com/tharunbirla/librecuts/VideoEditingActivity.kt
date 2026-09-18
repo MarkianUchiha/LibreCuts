@@ -146,6 +146,8 @@ class VideoEditingActivity : AppCompatActivity() {
     )
     private var workspaceOriginals: WorkspaceOriginals? = null
     private var isImeVisible = false
+    // Filas de botones de los toolbars partidas en varias líneas mientras están en el panel lateral.
+    private val wrappedToolbarRows = mutableListOf<Pair<LinearLayout, com.tharunbirla.librecuts.customviews.WrapLayout>>()
     private var pixelsPerMs: Float = 0.3f
     private var lastSnappedTargetMs: Long = -1L
     private enum class ZoomMode { FIT, MEDIUM, PRECISION }
@@ -7741,8 +7743,60 @@ class VideoEditingActivity : AppCompatActivity() {
             scrollParams.topMargin = originals.controlsScrollTopMargin
         }
         controlsScroll.layoutParams = scrollParams
+        setToolbarRowsWrapped(isSidePanelLayout(config))
         syncWorkspacePanels()
         updateTimelineVisibilityForEditing()
+    }
+
+    /**
+     * En el panel de 360dp una fila de botones con scroll horizontal esconde la mitad (incluido
+     * "Listo"). Mientras dure el layout lateral, sus botones pasan a un WrapLayout que parte la fila.
+     * Solo se tocan filas sin id: ningún código las referencia, así que mover sus hijos es seguro
+     * (colorPickerList sí tiene id porque se rellena en tiempo de ejecución, y se deja como está).
+     */
+    private fun setToolbarRowsWrapped(wrapped: Boolean) {
+        if (wrapped) {
+            if (wrappedToolbarRows.isNotEmpty()) return
+            for (row in findToolbarButtonRows(toolOptionsHost)) {
+                val scroll = row.parent as ViewGroup
+                val wrap = com.tharunbirla.librecuts.customviews.WrapLayout(this)
+                val items = (0 until row.childCount).map { row.getChildAt(it) }
+                row.removeAllViews()
+                items.forEach { wrap.addView(it, it.layoutParams) }
+                scroll.removeView(row)
+                scroll.addView(wrap, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT))
+                wrappedToolbarRows += row to wrap
+            }
+        } else {
+            for ((row, wrap) in wrappedToolbarRows) {
+                val scroll = wrap.parent as ViewGroup
+                val items = (0 until wrap.childCount).map { wrap.getChildAt(it) }
+                wrap.removeAllViews()
+                items.forEach { row.addView(it, it.layoutParams) }
+                scroll.removeView(wrap)
+                scroll.addView(row, row.layoutParams)
+            }
+            wrappedToolbarRows.clear()
+        }
+    }
+
+    private fun findToolbarButtonRows(root: ViewGroup): List<LinearLayout> {
+        val rows = mutableListOf<LinearLayout>()
+        for (i in 0 until root.childCount) {
+            val child = root.getChildAt(i)
+            val row = (child as? android.widget.HorizontalScrollView)?.getChildAt(0) as? LinearLayout
+            if (row != null && row.id == View.NO_ID &&
+                row.orientation == LinearLayout.HORIZONTAL && row.childCount > 0 &&
+                (0 until row.childCount).all {
+                    (row.getChildAt(it) as? LinearLayout)?.orientation == LinearLayout.VERTICAL
+                }
+            ) {
+                rows += row
+            } else if (child is ViewGroup) {
+                rows += findToolbarButtonRows(child)
+            }
+        }
+        return rows
     }
 
     private fun moveViewTo(view: View, target: ViewGroup, params: ViewGroup.LayoutParams, index: Int = -1) {
