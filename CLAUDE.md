@@ -3,6 +3,13 @@
 Editor de video Android, FOSS, 100% local. Fork de `tharunbirla/LibreCuts` (remote `upstream`); el nuestro es `origin` (`MarkianUchiha/LibreCuts`).
 Distribución upstream: GitHub Releases, F-Droid, Obtainium (no Play Store).
 
+## Meta del fork
+
+Fork **propio** (no se planea mandar PRs a upstream). En orden:
+1. Base limpia: quitar APIs deprecadas y código muerto.
+2. Corregir los muchos bugs de la app (la mayoría sencillos pero molestos) y traducir al español.
+3. Agregar funciones tipo CapCut; un par de diferenciadores, por definir.
+
 Todo lo de este archivo se verificó contra el código el 2026-09-17. Lo que no se pudo confirmar está en **No confirmado**.
 
 ## Comandos (los mismos que corre CI en `.github/workflows/ci.yml`)
