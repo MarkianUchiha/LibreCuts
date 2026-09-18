@@ -17,6 +17,15 @@ Fork **propio** (no se planea mandar PRs a upstream). En orden:
 - Labels: `app-android` + `Bug` / `Feature` / `Improvement`.
 - Dispositivo de prueba: tablet Honor ELN-W09, Android 13 (API 33), MagicOS 7.1, arm64, ~3.7 GB RAM. Instalar con `./gradlew installDebug`.
 
+## Probar en la tablet (lecciones aprendidas)
+
+- **Los logs de las apps están silenciados** (`persist.log.tag=S` de MagicOS). Un `logcat` vacío NO prueba que no haya errores. Para diagnosticar: `adb shell setprop log.tag.<TAG> D` (se pierde al reiniciar; regresarlo con `S`).
+- **Abrir el editor sin tocar la pantalla:** `am start -a android.intent.action.SEND -t video/mp4 --eu android.intent.extra.STREAM content://media/external/video/media/<id> -n com.tharunbirla.librecuts/.MainActivity`. Hay videos sintéticos de prueba en `/sdcard/Movies/librecuts_test*.mp4` (16:9 y 9:16); no usar los videos personales del usuario.
+- **Girar:** `settings put system accelerometer_rotation 0` + `settings put system user_rotation 1|0`. Reinstalar la app la regresa a 0. Al terminar, dejar `accelerometer_rotation 1`.
+- **Multitoque:** `sendevent` requiere root (bloqueado). Los gestos de dos dedos se prueban con tests instrumentados (`androidTest`, ver `TextOverlayPinchTest`).
+- **Tests instrumentados:** NO usar `connectedAndroidTest` (desinstala la app y borra sus datos). Usar `assembleDebugAndroidTest`, `adb install -r -t` del APK de test y `am instrument -w -e package com.tharunbirla.librecuts com.tharunbirla.librecuts.test/androidx.test.runner.AndroidJUnitRunner`.
+- **Rendimiento en reposo:** `dumpsys gfxinfo com.tharunbirla.librecuts reset`, esperar 3 s y leer `Total frames rendered`. En reposo debe ser ~0.
+
 Todo lo de este archivo se verificó contra el código el 2026-09-17. Lo que no se pudo confirmar está en **No confirmado**.
 
 ## Comandos (los mismos que corre CI en `.github/workflows/ci.yml`)
