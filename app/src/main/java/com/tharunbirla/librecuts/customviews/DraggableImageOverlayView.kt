@@ -17,6 +17,7 @@ import android.widget.ImageView
 import androidx.appcompat.widget.AppCompatImageView
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import androidx.core.view.drawToBitmap
 import android.media.ExifInterface
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
@@ -555,13 +556,7 @@ class DraggableImageOverlayView @JvmOverloads constructor(
 
     private fun pickColorAt(x: Float, y: Float) {
         try {
-            val bmpToUse = originalBitmapForChroma ?: run {
-                imageView.isDrawingCacheEnabled = true
-                imageView.buildDrawingCache(true)
-                val c = imageView.getDrawingCache(true)?.copy(Bitmap.Config.ARGB_8888, true)
-                imageView.isDrawingCacheEnabled = false
-                c
-            }
+            val bmpToUse = originalBitmapForChroma ?: captureImageViewBitmap()
             if (bmpToUse != null) {
                 // map coordinates
                 val localX = (x - imageView.x).toInt().coerceIn(0, bmpToUse.width - 1)
@@ -576,6 +571,11 @@ class DraggableImageOverlayView @JvmOverloads constructor(
             isColorPickingMode = false
         }
     }
+
+    // drawToBitmap lanza IllegalStateException si la vista aún no tiene tamaño;
+    // el drawing cache anterior devolvía null en ese caso, así que se conserva ese contrato.
+    private fun captureImageViewBitmap(): Bitmap? =
+        if (imageView.isLaidOut) imageView.drawToBitmap() else null
 
     fun setChromaKey(colorHex: String?, similarity: Float) {
         currentChromaColor = colorHex
@@ -595,13 +595,7 @@ class DraggableImageOverlayView @JvmOverloads constructor(
         chromaJob?.cancel()
         chromaJob = scope.launch {
             if (originalBitmapForChroma == null) {
-                imageView.isDrawingCacheEnabled = true
-                imageView.buildDrawingCache(true)
-                val cache = imageView.getDrawingCache(true)
-                if (cache != null) {
-                    originalBitmapForChroma = cache.copy(Bitmap.Config.ARGB_8888, true)
-                }
-                imageView.isDrawingCacheEnabled = false
+                originalBitmapForChroma = captureImageViewBitmap()
             }
             val base = originalBitmapForChroma ?: return@launch
             
