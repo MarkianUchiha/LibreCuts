@@ -776,12 +776,19 @@ class VideoEditingActivity : AppCompatActivity() {
 
         setupFullscreenAndPipControls()
 
-        val canvasLayoutListener = android.view.ViewTreeObserver.OnGlobalLayoutListener {
-            triggerCanvasLayoutUpdate()
+        // triggerCanvasLayoutUpdate reasigna layoutParams, lo que pide otro layout: sin esta guarda se
+        // repetía en cada frame (~60 fps en reposo) y reubicaba los overlays a su posición guardada,
+        // pisando cualquier movimiento en curso. Solo se recalcula si cambió el contenedor del canvas.
+        // Los tres contenedores comparten el ViewTreeObserver de la ventana: basta un listener.
+        var lastCanvasHost: Triple<Int, Int, Int>? = null
+        playerContainer.viewTreeObserver.addOnGlobalLayoutListener {
+            val host = canvasContainer.parent as? View ?: return@addOnGlobalLayoutListener
+            val hostState = Triple(host.id, host.width, host.height)
+            if (hostState != lastCanvasHost) {
+                lastCanvasHost = hostState
+                triggerCanvasLayoutUpdate()
+            }
         }
-        playerContainer.viewTreeObserver.addOnGlobalLayoutListener(canvasLayoutListener)
-        pipPlayerContainer.viewTreeObserver.addOnGlobalLayoutListener(canvasLayoutListener)
-        fullscreenCanvasHolder.viewTreeObserver.addOnGlobalLayoutListener(canvasLayoutListener)
 
         tvDuration = findViewById(R.id.tvDuration)
         sequenceTrackContainer = findViewById(R.id.sequenceTrackContainer)
@@ -5739,6 +5746,9 @@ class VideoEditingActivity : AppCompatActivity() {
                         finish()
                     }
                 }
+                // La proporción real del video recién se conoce aquí; antes el ciclo de layout la
+                // aplicaba por accidente en el siguiente frame.
+                triggerCanvasLayoutUpdate()
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
