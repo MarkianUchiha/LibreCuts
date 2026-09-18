@@ -128,6 +128,24 @@ class VideoEditingActivity : AppCompatActivity() {
     // Posición de reproducción antes de un cambio de ancho; se restaura en onTimelineWidthChanged.
     private var positionBeforeResizeMs: Long? = null
     private var lastScreenWidthDp = 0
+
+    // Vistas del layout lateral de tablet. by lazy: se buscan al primer uso, ya con el layout inflado.
+    private val toolOptionsHost by lazy { findViewById<LinearLayout>(R.id.toolOptionsHost) }
+    private val sidePanel by lazy { findViewById<android.widget.ScrollView>(R.id.sidePanel) }
+    private val toolRail by lazy { findViewById<android.widget.ScrollView>(R.id.toolRail) }
+    private val controlsScroll by lazy { findViewById<android.widget.HorizontalScrollView>(R.id.editingControlsScroll) }
+    private val controlsWrapper by lazy { findViewById<LinearLayout>(R.id.editingControlsWrapper) }
+
+    // Ubicación original (layout vertical) de lo que se mueve, para regresarlo al salir del layout lateral.
+    private class WorkspaceOriginals(
+        val hostParent: ViewGroup,
+        val hostIndex: Int,
+        val hostParams: ViewGroup.LayoutParams,
+        val wrapperParams: ViewGroup.LayoutParams,
+        val controlsScrollTopMargin: Int
+    )
+    private var workspaceOriginals: WorkspaceOriginals? = null
+    private var isImeVisible = false
     private var pixelsPerMs: Float = 0.3f
     private var lastSnappedTargetMs: Long = -1L
     private enum class ZoomMode { FIT, MEDIUM, PRECISION }
@@ -803,6 +821,20 @@ class VideoEditingActivity : AppCompatActivity() {
             if (right - left != oldRight - oldLeft) {
                 timelineContainer.post { onTimelineWidthChanged() }
             }
+        }
+
+        applyWorkspaceLayout()
+        // setVisibility no hace nada si el valor no cambia, así que esto no provoca un ciclo de layouts.
+        // Con adjustResize, abrir o cerrar el teclado también dispara un layout: aquí se detecta.
+        val workspaceRow = findViewById<View>(R.id.workspaceRow)
+        workspaceRow.viewTreeObserver.addOnGlobalLayoutListener {
+            val imeVisible = androidx.core.view.ViewCompat.getRootWindowInsets(workspaceRow)
+                ?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) ?: false
+            if (imeVisible != isImeVisible) {
+                isImeVisible = imeVisible
+                updateTimelineVisibilityForEditing()
+            }
+            syncWorkspacePanels()
         }
 
         timelineVerticalScroll.setOnScrollChangeListener { _, _, _, _, _ ->
@@ -2843,8 +2875,7 @@ class VideoEditingActivity : AppCompatActivity() {
             setupColorPicker(toolbar)
         }
         findViewById<LinearLayout>(R.id.editingControlsWrapper)?.visibility = View.GONE
-        findViewById<View>(R.id.timelineContainer)?.visibility = View.GONE
-        findViewById<View>(R.id.timelineDivider)?.visibility = View.GONE
+        updateTimelineVisibilityForEditing()
         if (::player.isInitialized && player.isPlaying) {
             player.pause()
         }
@@ -2854,8 +2885,7 @@ class VideoEditingActivity : AppCompatActivity() {
         isTextEditingActive = false
         textEditingToolbar?.visibility = View.GONE
         findViewById<LinearLayout>(R.id.editingControlsWrapper)?.visibility = View.VISIBLE
-        findViewById<View>(R.id.timelineContainer)?.visibility = View.VISIBLE
-        findViewById<View>(R.id.timelineDivider)?.visibility = View.VISIBLE
+        updateTimelineVisibilityForEditing()
         setActiveToolButton(0)
     }
 
@@ -3081,8 +3111,7 @@ class VideoEditingActivity : AppCompatActivity() {
         subtitlesEditingToolbar?.visibility = View.VISIBLE
         updateSubtitlesUi()
         findViewById<LinearLayout>(R.id.editingControlsWrapper)?.visibility = View.GONE
-        findViewById<View>(R.id.timelineContainer)?.visibility = View.GONE
-        findViewById<View>(R.id.timelineDivider)?.visibility = View.GONE
+        updateTimelineVisibilityForEditing()
         if (::player.isInitialized && player.isPlaying) {
             player.pause()
         }
@@ -3095,8 +3124,7 @@ class VideoEditingActivity : AppCompatActivity() {
         textOverlayView?.subtitleOperation = subOp
         subtitlesEditingToolbar?.visibility = View.GONE
         findViewById<LinearLayout>(R.id.editingControlsWrapper)?.visibility = View.VISIBLE
-        findViewById<View>(R.id.timelineContainer)?.visibility = View.VISIBLE
-        findViewById<View>(R.id.timelineDivider)?.visibility = View.VISIBLE
+        updateTimelineVisibilityForEditing()
         setActiveToolButton(0)
     }
 
@@ -7674,6 +7702,77 @@ class VideoEditingActivity : AppCompatActivity() {
         }
         lastScreenWidthDp = newConfig.screenWidthDp
         super.onConfigurationChanged(newConfig)
+        applyWorkspaceLayout(newConfig)
+    }
+
+    // sw600dp es la convención de Android para "tablet"; en teléfono horizontal el panel no cabe.
+    private fun isSidePanelLayout(config: android.content.res.Configuration = resources.configuration): Boolean =
+        config.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE &&
+            config.smallestScreenWidthDp >= 600
+
+    /**
+     * Tablet horizontal: los toolbars pasan al panel derecho y la barra de herramientas al riel
+     * izquierdo. Se mueven vistas en vez de usar layout-land porque la Activity no se recrea al
+     * girar (configChanges) y mucho de su estado vive fuera del ViewModel.
+     */
+    private fun applyWorkspaceLayout(config: android.content.res.Configuration = resources.configuration) {
+        val scrollParams = controlsScroll.layoutParams as LinearLayout.LayoutParams
+        val originals = workspaceOriginals ?: WorkspaceOriginals(
+            hostParent = toolOptionsHost.parent as ViewGroup,
+            hostIndex = (toolOptionsHost.parent as ViewGroup).indexOfChild(toolOptionsHost),
+            hostParams = toolOptionsHost.layoutParams,
+            wrapperParams = controlsWrapper.layoutParams,
+            controlsScrollTopMargin = scrollParams.topMargin
+        ).also { workspaceOriginals = it }
+
+        if (isSidePanelLayout(config)) {
+            moveViewTo(toolOptionsHost, sidePanel, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT))
+            moveViewTo(controlsWrapper, toolRail, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT))
+            controlsWrapper.orientation = LinearLayout.VERTICAL
+            // La barra inferior queda vacía: se colapsa en vez de ocultarse para no pisar la
+            // visibilidad que le asigna el resto del código (dibujo, proyecto vacío); el riel la refleja.
+            scrollParams.height = 0
+            scrollParams.topMargin = 0
+        } else {
+            moveViewTo(toolOptionsHost, originals.hostParent, originals.hostParams, originals.hostIndex)
+            moveViewTo(controlsWrapper, controlsScroll, originals.wrapperParams)
+            controlsWrapper.orientation = LinearLayout.HORIZONTAL
+            scrollParams.height = LinearLayout.LayoutParams.WRAP_CONTENT
+            scrollParams.topMargin = originals.controlsScrollTopMargin
+        }
+        controlsScroll.layoutParams = scrollParams
+        syncWorkspacePanels()
+        updateTimelineVisibilityForEditing()
+    }
+
+    private fun moveViewTo(view: View, target: ViewGroup, params: ViewGroup.LayoutParams, index: Int = -1) {
+        if (view.parent === target) return
+        (view.parent as? ViewGroup)?.removeView(view)
+        target.addView(view, index, params)
+    }
+
+    // Los modos de edición solo cambian la visibilidad de los toolbars y de la barra de herramientas;
+    // el panel y el riel la siguen desde aquí para no tocar cada enterXxxMode/exitXxxMode.
+    private fun syncWorkspacePanels() {
+        val side = isSidePanelLayout()
+        val anyToolbarVisible = (0 until toolOptionsHost.childCount).any {
+            toolOptionsHost.getChildAt(it).visibility == View.VISIBLE
+        }
+        sidePanel.visibility = if (side && anyToolbarVisible) View.VISIBLE else View.GONE
+        toolRail.visibility =
+            if (side && controlsWrapper.visibility == View.VISIBLE && controlsScroll.visibility == View.VISIBLE) View.VISIBLE
+            else View.GONE
+    }
+
+    // En vertical el timeline se oculta al editar texto o subtítulos para dejarle espacio al teclado.
+    // En el layout lateral solo se oculta mientras el teclado está abierto (con él, el alto útil
+    // baja a ~600 px y el preview quedaría ilegible); cerrado, se ve para ajustar el clip (M-200).
+    private fun updateTimelineVisibilityForEditing() {
+        val editing = isTextEditingActive || isSubtitlesEditingActive
+        val hide = editing && (!isSidePanelLayout() || isImeVisible)
+        val visibility = if (hide) View.GONE else View.VISIBLE
+        findViewById<View>(R.id.timelineContainer)?.visibility = visibility
+        findViewById<View>(R.id.timelineDivider)?.visibility = visibility
     }
 
     override fun onDestroy() {
