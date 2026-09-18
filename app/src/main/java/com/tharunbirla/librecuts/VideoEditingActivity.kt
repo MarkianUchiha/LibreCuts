@@ -468,6 +468,11 @@ class VideoEditingActivity : AppCompatActivity() {
     private var cropOverlayView: com.tharunbirla.librecuts.customviews.CropOverlayView? = null
     private var videoMaskOverlayView: com.tharunbirla.librecuts.customviews.VideoMaskOverlayView? = null
     private var mainVideoMaskContainer: com.tharunbirla.librecuts.customviews.MaskedFrameLayout? = null
+
+    // Rect del video completo en coordenadas de canvasContainer; con recorte es más grande que el
+    // lienzo visible. El encuadre escala y mueve respecto a él porque en el export el recorte va al final.
+    private val clipFrameReference = android.graphics.RectF()
+    private var activeClipFrame: EditOperation.ClipFrame? = null
     private var initialCropOperation: com.tharunbirla.librecuts.models.EditOperation.Crop? = null
     private var subtitlesEditingToolbar: View? = null
     private var isSubtitlesEditingActive = false
@@ -2342,6 +2347,9 @@ class VideoEditingActivity : AppCompatActivity() {
             playerView.translationX = -fullWidth * xFrac
             playerView.translationY = -fullHeight * yFrac
 
+            clipFrameReference.set(-fullWidth * xFrac, -fullHeight * yFrac, fullWidth * (1f - xFrac), fullHeight * (1f - yFrac))
+            refreshClipFramePreview()
+
             val hwCanvas = findViewById<com.tharunbirla.librecuts.customviews.HandwritingCanvasView>(R.id.handwritingCanvasView)
             val overlays = listOf(textOverlayView, draggableTextOverlay, imageOverlayView, draggableImageOverlay, cropOverlayView, videoMaskOverlayView, hwCanvas)
             for (overlay in overlays) {
@@ -2398,6 +2406,9 @@ class VideoEditingActivity : AppCompatActivity() {
             playerView.translationX = 0f
             playerView.translationY = 0f
 
+            clipFrameReference.set(0f, 0f, finalWidth.toFloat(), finalHeight.toFloat())
+            refreshClipFramePreview()
+
             val hwCanvas = findViewById<com.tharunbirla.librecuts.customviews.HandwritingCanvasView>(R.id.handwritingCanvasView)
             val overlays = listOf(textOverlayView, draggableTextOverlay, imageOverlayView, draggableImageOverlay, cropOverlayView, videoMaskOverlayView, hwCanvas)
             for (overlay in overlays) {
@@ -2418,6 +2429,35 @@ class VideoEditingActivity : AppCompatActivity() {
             draggableImageOverlay?.setVideoSize(finalWidth, finalHeight)
             cropOverlayView?.setVideoSize(finalWidth, finalHeight)
         }
+    }
+
+    /**
+     * Encuadre del clip en el preview. Se transforma mainVideoMaskContainer (video, foto y máscara
+     * juntos) con pivote en el centro del video completo, igual que el export, que encuadra antes de recortar.
+     */
+    private fun applyClipFramePreview(frame: EditOperation.ClipFrame?) {
+        val container = mainVideoMaskContainer ?: return
+        val ref = clipFrameReference
+        if (ref.isEmpty) return
+        val f = frame ?: EditOperation.ClipFrame()
+        container.pivotX = ref.centerX()
+        container.pivotY = ref.centerY()
+        container.scaleX = f.scale
+        container.scaleY = f.scale
+        container.translationX = f.offsetX * ref.width()
+        container.translationY = f.offsetY * ref.height()
+    }
+
+    /** Recalcula el encuadre del clip bajo el playhead; para cambios del proyecto con el video en pausa. */
+    private fun refreshClipFramePreview() {
+        if (!isVideoLoaded) return
+        val position = getGlobalPosition()
+        var start = 0L
+        activeClipFrame = getSequenceItems().firstOrNull { item ->
+            val end = start + item.trimmedDurationMs
+            (position in start..end).also { start = end }
+        }?.frame
+        applyClipFramePreview(activeClipFrame)
     }
 
     @SuppressLint("InflateParams")
@@ -5575,6 +5615,8 @@ class VideoEditingActivity : AppCompatActivity() {
                 val relTimeMs = currentGlobalPos - accumulatedStartMs
                 val evaluatedMask = sequenceItems[activeClipIndex].maskConfig.evaluatedAt(relTimeMs)
                 mainVideoMaskContainer?.maskConfig = evaluatedMask
+                activeClipFrame = sequenceItems[activeClipIndex].frame
+                applyClipFramePreview(activeClipFrame)
 
                 val activeItem = sequenceItems[activeClipIndex]
                 if (activeItem.isImage || isImageUri(activeItem.uri)) {
