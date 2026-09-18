@@ -450,6 +450,10 @@ class VideoEditingActivity : AppCompatActivity() {
     private var draggableTextOverlay: DraggableTextOverlayView? = null
     private var textEditingToolbar: View? = null
     private var isTextEditingActive = false
+        set(value) {
+            field = value
+            updateImageTapToSelect()
+        }
 
     // Inline image overlay editing state
     private var draggableImageOverlay: DraggableImageOverlayView? = null
@@ -471,6 +475,10 @@ class VideoEditingActivity : AppCompatActivity() {
     private var initialCropOperation: com.tharunbirla.librecuts.models.EditOperation.Crop? = null
     private var subtitlesEditingToolbar: View? = null
     private var isSubtitlesEditingActive = false
+        set(value) {
+            field = value
+            updateImageTapToSelect()
+        }
 
     private var keyframeEditingToolbar: View? = null
     private var isKeyframeEditingMode = false
@@ -954,7 +962,10 @@ class VideoEditingActivity : AppCompatActivity() {
         }
 
         imageOverlayView = try {
-            findViewById(R.id.imageOverlayView)
+            findViewById<ImageOverlayView>(R.id.imageOverlayView)?.also { overlay ->
+                // Igual que los textos: tocar una imagen en el preview la selecciona (mismo colector).
+                overlay.onImageTapped = { opId -> viewModel.selectOperation(opId) }
+            }
         } catch (e: Exception) {
             Log.w(TAG, "ImageOverlayView not found in layout: ${e.message}")
             null
@@ -1181,6 +1192,7 @@ class VideoEditingActivity : AppCompatActivity() {
         draggableImageOverlay = try {
             findViewById<DraggableImageOverlayView>(R.id.draggableImageOverlay)?.also { overlay ->
                 overlay.isSnappingEnabled = isMagnetEnabled
+                overlay.onTapOutside = { x, y -> handleImageTapOutside(x, y) }
                 overlay.onPositionChanged = { rx, ry ->
                     if (isKeyframeEditingMode && activeKeyframeProperty == "Position") {
                         val selectedId = viewModel.selectedOperationId.value
@@ -2903,8 +2915,10 @@ class VideoEditingActivity : AppCompatActivity() {
      * commitText no guarda textos vacíos y el modo se quedaría abierto).
      */
     private fun handleTextTapOutside(x: Float, y: Float) {
+        // En keyframes manda su propio toolbar; guardar aquí dejaría ese toolbar sin overlay activo.
+        if (isKeyframeEditingMode) return
         val overlay = draggableTextOverlay ?: return
-        val otherTextId = textOverlayView?.findTextAt(x, y)
+        val otherOverlayId = findOverlayAt(x, y)
         if (overlay.getText().isBlank()) {
             overlay.deactivate()
             viewModel.selectOperation(null)
@@ -2912,7 +2926,27 @@ class VideoEditingActivity : AppCompatActivity() {
         } else {
             overlay.commitText()
         }
-        if (otherTextId != null) viewModel.selectOperation(otherTextId)
+        if (otherOverlayId != null) viewModel.selectOperation(otherOverlayId)
+    }
+
+    /** Tocar fuera de la imagen seleccionada: lo mismo que "Listo" y, si cayó sobre otro overlay, seleccionarlo. */
+    private fun handleImageTapOutside(x: Float, y: Float) {
+        if (isKeyframeEditingMode) return
+        val otherOverlayId = findOverlayAt(x, y)
+        draggableImageOverlay?.commitImage()
+        if (otherOverlayId != null) viewModel.selectOperation(otherOverlayId)
+    }
+
+    /** Overlay visible bajo (x, y). Imágenes primero: en el preview se dibujan encima de los textos. */
+    private fun findOverlayAt(x: Float, y: Float): String? =
+        imageOverlayView?.findImageAt(x, y) ?: textOverlayView?.findTextAt(x, y)
+
+    /**
+     * ImageOverlayView queda encima de las vistas de texto y subtítulos. Mientras se editan, el
+     * toque es para ellas: arrastrar un texto que pasa sobre una imagen no debe seleccionarla.
+     */
+    private fun updateImageTapToSelect() {
+        imageOverlayView?.isTapToSelectEnabled = !isTextEditingActive && !isSubtitlesEditingActive
     }
 
     private fun exitTextEditingMode() {
