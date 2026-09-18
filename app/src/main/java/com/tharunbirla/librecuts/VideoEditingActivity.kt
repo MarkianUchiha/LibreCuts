@@ -842,6 +842,8 @@ class VideoEditingActivity : AppCompatActivity() {
             if (imeVisible != isImeVisible) {
                 isImeVisible = imeVisible
                 updateTimelineVisibilityForEditing()
+                // Cerrar el teclado (atrás, pestaña Color…) regresa el texto a modo mover/escalar.
+                if (!imeVisible) draggableTextOverlay?.onKeyboardHidden()
             }
             syncWorkspacePanels()
         }
@@ -943,6 +945,8 @@ class VideoEditingActivity : AppCompatActivity() {
                         updateSubtitleOp(subOp.copy(relativeX = relX, relativeY = relY))
                     }
                 }
+                // Tocar un texto en el preview lo selecciona igual que tocar su pista (mismo colector).
+                overlay.onTextTapped = { opId -> viewModel.selectOperation(opId) }
             }
         } catch (e: Exception) {
             Log.w(TAG, "TextOverlayView not found in layout: ${e.message}")
@@ -959,6 +963,7 @@ class VideoEditingActivity : AppCompatActivity() {
         draggableTextOverlay = try {
             findViewById<DraggableTextOverlayView>(R.id.draggableTextOverlay)?.also { overlay ->
                 overlay.isSnappingEnabled = isMagnetEnabled
+                overlay.onTapOutside = { x, y -> handleTextTapOutside(x, y) }
                 overlay.onPositionChanged = { rx, ry ->
                     if (isKeyframeEditingMode && activeKeyframeProperty == "Position") {
                         val selectedId = viewModel.selectedOperationId.value
@@ -2879,7 +2884,9 @@ class VideoEditingActivity : AppCompatActivity() {
         textEditingToolbar?.visibility = View.VISIBLE
         textEditingToolbar?.let { toolbar ->
             toolbar.findViewById<View>(R.id.colorPickerContainer)?.visibility = View.GONE
-            toolbar.findViewById<ImageButton>(R.id.btnTextKeyboardTab)?.setColorFilter(getColor(R.color.colorPrimary))
+            // Reeditar entra seleccionado sin teclado, así que la pestaña Teclado no empieza activa.
+            val keyboardTabColor = if (isReEditing) R.color.toolTextInactive else R.color.colorPrimary
+            toolbar.findViewById<ImageButton>(R.id.btnTextKeyboardTab)?.setColorFilter(getColor(keyboardTabColor))
             toolbar.findViewById<ImageButton>(R.id.btnTextPaletteTab)?.setColorFilter(getColor(R.color.toolTextInactive))
             setupColorPicker(toolbar)
         }
@@ -2888,6 +2895,24 @@ class VideoEditingActivity : AppCompatActivity() {
         if (::player.isInitialized && player.isPlaying) {
             player.pause()
         }
+    }
+
+    /**
+     * Tocar fuera del texto seleccionado. Sobre otro texto: guarda el actual y selecciona ese.
+     * En una zona vacía: lo mismo que "Listo" (o "Cancelar" si el texto quedó vacío, porque
+     * commitText no guarda textos vacíos y el modo se quedaría abierto).
+     */
+    private fun handleTextTapOutside(x: Float, y: Float) {
+        val overlay = draggableTextOverlay ?: return
+        val otherTextId = textOverlayView?.findTextAt(x, y)
+        if (overlay.getText().isBlank()) {
+            overlay.deactivate()
+            viewModel.selectOperation(null)
+            exitTextEditingMode()
+        } else {
+            overlay.commitText()
+        }
+        if (otherTextId != null) viewModel.selectOperation(otherTextId)
     }
 
     private fun exitTextEditingMode() {
