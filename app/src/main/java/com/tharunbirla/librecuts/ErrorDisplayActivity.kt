@@ -11,6 +11,7 @@ import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.pm.PackageInfoCompat
 import com.google.android.material.button.MaterialButton
 import com.tharunbirla.librecuts.R
 
@@ -25,7 +26,7 @@ class ErrorDisplayActivity : AppCompatActivity() {
 
         val appVersion = try {
             val pInfo = packageManager.getPackageInfo(packageName, 0)
-            "${pInfo.versionName} (${pInfo.versionCode})"
+            "${pInfo.versionName} (${PackageInfoCompat.getLongVersionCode(pInfo)})"
         } catch (e: Exception) {
             "1.0-beta"
         }

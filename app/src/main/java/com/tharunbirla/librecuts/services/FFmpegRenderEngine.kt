@@ -3,6 +3,7 @@ package com.tharunbirla.librecuts.services
 import android.content.Context
 import android.net.Uri
 import android.util.Log
+import androidx.core.content.pm.PackageInfoCompat
 import com.antonkarpenko.ffmpegkit.FFmpegKit
 import com.antonkarpenko.ffmpegkit.FFmpegKitConfig
 import com.antonkarpenko.ffmpegkit.FFmpegSession
@@ -367,7 +368,7 @@ class FFmpegRenderEngine(private val context: Context) {
     ): String {
         val appVersion = try {
             val pInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-            "${pInfo.versionName} (${pInfo.versionCode})"
+            "${pInfo.versionName} (${PackageInfoCompat.getLongVersionCode(pInfo)})"
         } catch (e: Exception) {
             "1.0-beta"
         }

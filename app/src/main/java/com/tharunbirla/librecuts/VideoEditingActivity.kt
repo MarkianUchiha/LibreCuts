@@ -8083,7 +8083,7 @@ class VideoEditingActivity : AppCompatActivity() {
 
         btnApply.setOnClickListener {
             applied = true
-            if (op != null && selectedColor != null) {
+            if (op != null) {
                 viewModel.updateOperation(op.copy(
                     chromaKeyColor = selectedColor,
                     chromaKeySimilarity = slider.value

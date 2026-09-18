@@ -14,8 +14,8 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.content.IntentCompat
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import android.os.Parcelable
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
@@ -572,7 +572,7 @@ class MainActivity : AppCompatActivity() {
 
         if (Intent.ACTION_SEND == action && type != null) {
             if (type.startsWith("video/") || type.startsWith("image/")) {
-                (intent.getParcelableExtra<Parcelable>(Intent.EXTRA_STREAM) as? Uri)?.let { uri ->
+                IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)?.let { uri ->
                     Log.d("SharedVideo", "Received SEND intent with media URI: $uri")
                     navigateToEditingScreen(uri)
                 }

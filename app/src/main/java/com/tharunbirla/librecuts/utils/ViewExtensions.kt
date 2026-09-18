@@ -16,12 +16,9 @@ fun View.isHapticFeedbackEnabled(): Boolean {
 /**
  * Performs haptic feedback only if enabled in user settings.
  */
-fun View.performAppHapticFeedback(
-    feedbackConstant: Int,
-    flags: Int = HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
-): Boolean {
+fun View.performAppHapticFeedback(feedbackConstant: Int): Boolean {
     return if (isHapticFeedbackEnabled()) {
-        this.performHapticFeedback(feedbackConstant, flags)
+        this.performHapticFeedback(feedbackConstant)
     } else {
         false
     }
@@ -39,10 +36,7 @@ fun View.setBounceClickListener(onClick: () -> Unit) {
             MotionEvent.ACTION_UP -> {
                 v.animate().scaleX(1f).scaleY(1f).setDuration(100).start()
                 if (v.isHapticFeedbackEnabled()) {
-                    v.performHapticFeedback(
-                        HapticFeedbackConstants.VIRTUAL_KEY,
-                        HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
-                    )
+                    v.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                 }
                 // If it's a valid click (inside bounds)
                 if (event.x >= 0 && event.x <= v.width && event.y >= 0 && event.y <= v.height) {
@@ -62,10 +56,7 @@ fun View.setBounceClickListener(onClick: () -> Unit) {
  */
 fun View.performHapticLight() {
     if (isHapticFeedbackEnabled()) {
-        this.performHapticFeedback(
-            HapticFeedbackConstants.CLOCK_TICK,
-            HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
-        )
+        this.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
     }
 }
 
@@ -74,10 +65,7 @@ fun View.performHapticLight() {
  */
 fun View.performHapticClick() {
     if (isHapticFeedbackEnabled()) {
-        this.performHapticFeedback(
-            HapticFeedbackConstants.VIRTUAL_KEY,
-            HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
-        )
+        this.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
     }
 }
 

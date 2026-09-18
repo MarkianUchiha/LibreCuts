@@ -1315,9 +1315,7 @@ class VideoEditingViewModel : ViewModel() {
                 }
             }
 
-            if (outputDuration != null) {
-                cmd.append(" -t $outputDuration")
-            }
+            cmd.append(" -t $outputDuration")
             cmd.append(" \"$outputFilePath\"")
 
             val finalCommand = cmd.toString()

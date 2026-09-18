@@ -704,11 +704,7 @@ class DraggableImageOverlayView @JvmOverloads constructor(
             }
             
             if (maskConfig.isInverted) {
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                    canvas.clipOutPath(path)
-                } else {
-                    canvas.clipPath(path, android.graphics.Region.Op.DIFFERENCE)
-                }
+                canvas.clipOutPath(path)
             } else {
                 canvas.clipPath(path)
             }

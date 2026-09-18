@@ -18,6 +18,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.collection.LruCache
 import androidx.core.content.ContextCompat
+import androidx.core.content.IntentCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
 import com.tharunbirla.librecuts.models.EditOperation
@@ -196,7 +197,7 @@ class ProjectImportActivity : AppCompatActivity() {
             }
         }
 
-        projectUri = intent.getParcelableExtra("PROJECT_URI")
+        projectUri = IntentCompat.getParcelableExtra(intent, "PROJECT_URI", Uri::class.java)
         if (projectUri == null) {
             Toast.makeText(this, "No project URI provided", Toast.LENGTH_SHORT).show()
             finish()

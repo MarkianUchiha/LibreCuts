@@ -3,8 +3,6 @@ package com.tharunbirla.librecuts.customviews
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Path
-import android.graphics.Region
-import android.os.Build
 import android.util.AttributeSet
 import android.widget.FrameLayout
 import com.tharunbirla.librecuts.models.EditOperation
@@ -56,9 +54,7 @@ class MaskedFrameLayout @JvmOverloads constructor(
                 
                 if (maskConfig.isInverted) {
                     val fullPath = Path().apply { addRect(0f, 0f, width.toFloat(), height.toFloat(), Path.Direction.CW) }
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-                        fullPath.op(path, Path.Op.DIFFERENCE)
-                    }
+                    fullPath.op(path, Path.Op.DIFFERENCE)
                     canvas.drawPath(fullPath, maskPaint)
                 } else {
                     canvas.drawPath(path, maskPaint)
@@ -67,11 +63,7 @@ class MaskedFrameLayout @JvmOverloads constructor(
             } else {
                 canvas.save()
                 if (maskConfig.isInverted) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        canvas.clipOutPath(path)
-                    } else {
-                        canvas.clipPath(path, Region.Op.DIFFERENCE)
-                    }
+                    canvas.clipOutPath(path)
                 } else {
                     canvas.clipPath(path)
                 }
