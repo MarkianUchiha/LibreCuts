@@ -106,6 +106,29 @@ class TextOverlayView @JvmOverloads constructor(
 
     private var subtitleCues: List<com.tharunbirla.librecuts.models.SubtitleCue> = emptyList()
 
+    // Límites de cada texto en el último onDraw, en orden de dibujado (el último queda arriba).
+    // Permiten seleccionar un texto tocándolo en el preview en vez de buscar su pista.
+    private val drawnTextBounds = LinkedHashMap<String, android.graphics.RectF>()
+    private val hitSlopPx = 16f * resources.displayMetrics.density
+
+    var onTextTapped: ((operationId: String) -> Unit)? = null
+
+    private val tapDetector = android.view.GestureDetector(context, object : android.view.GestureDetector.SimpleOnGestureListener() {
+        override fun onDown(e: android.view.MotionEvent): Boolean = true
+
+        override fun onSingleTapUp(e: android.view.MotionEvent): Boolean {
+            findTextAt(e.x, e.y)?.let { onTextTapped?.invoke(it) }
+            return true
+        }
+    })
+
+    /** Id del texto visible bajo (x, y), con un margen para que los textos chicos se puedan tocar. */
+    fun findTextAt(x: Float, y: Float): String? =
+        drawnTextBounds.entries.reversed().firstOrNull { (_, r) ->
+            x >= r.left - hitSlopPx && x <= r.right + hitSlopPx &&
+                y >= r.top - hitSlopPx && y <= r.bottom + hitSlopPx
+        }?.key
+
     fun setTextOperations(operations: List<EditOperation.AddText>) {
         this.overlayOperations = operations
         invalidate()
@@ -205,6 +228,7 @@ class TextOverlayView @JvmOverloads constructor(
 
         val videoRect = getVideoRect()
         val scale = if (videoHeight > 0) videoRect.height() / videoHeight.toFloat() else 1f
+        drawnTextBounds.clear()
 
         for (op in overlayOperations) {
             if (op is EditOperation.AddText) {
@@ -321,6 +345,10 @@ class TextOverlayView @JvmOverloads constructor(
                         }
                     }
                 }
+
+                // startY es la línea base de la primera línea; ascent() es negativo.
+                val boundsTop = startY + paint.ascent()
+                drawnTextBounds[op.id] = android.graphics.RectF(startX, boundsTop, startX + maxTextWidth, boundsTop + totalHeight)
 
                 // Draw each line
                 for ((index, line) in lines.withIndex()) {
@@ -524,7 +552,12 @@ class TextOverlayView @JvmOverloads constructor(
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: android.view.MotionEvent): Boolean {
         if (!isSubtitlesEditingActive || subtitleOperation == null) {
-            return super.onTouchEvent(event)
+            if (onTextTapped == null) return super.onTouchEvent(event)
+            // Solo se reclama el toque si empieza sobre un texto; si no, sigue a las vistas de abajo.
+            if (event.actionMasked == android.view.MotionEvent.ACTION_DOWN && findTextAt(event.x, event.y) == null) {
+                return false
+            }
+            return tapDetector.onTouchEvent(event)
         }
 
 
