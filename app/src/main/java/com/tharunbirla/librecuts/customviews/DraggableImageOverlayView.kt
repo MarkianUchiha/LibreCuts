@@ -575,6 +575,8 @@ class DraggableImageOverlayView @JvmOverloads constructor(
                     showVerticalGuideline = false
                     showHorizontalGuideline = false
                     updateRelativePosition()
+                    // Sin redibujar, la guía de snap se quedaba pintada después de soltar.
+                    invalidate()
                     return true
                 }
             }
