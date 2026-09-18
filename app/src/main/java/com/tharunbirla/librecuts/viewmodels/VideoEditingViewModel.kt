@@ -6,6 +6,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tharunbirla.librecuts.models.EditOperation
+import com.tharunbirla.librecuts.utils.ClipFrameFilters
 import com.tharunbirla.librecuts.models.EditRecipe
 import com.tharunbirla.librecuts.models.TextPosition
 import com.tharunbirla.librecuts.models.VideoEditingUiState
@@ -997,30 +998,38 @@ class VideoEditingViewModel : ViewModel() {
                 
                 filterParts.add("[$i:v]$preFilters[pre$i]")
 
+                // Encuadre del clip (M-198): cambia el tamaño y la posición del clip sobre el fondo.
+                // Sin encuadre, ClipFrameFilters devuelve las mismas cadenas de antes.
+                val clipFrame = if (i == 0) {
+                    operations.filterIsInstance<EditOperation.FrameMain>().lastOrNull()?.frame
+                } else {
+                    mergeOp?.items?.getOrNull(i - 1)?.frame
+                }
+                val fgScale = ClipFrameFilters.fitScale(mainWidth, mainHeight, clipFrame)
+                val fgPosition = ClipFrameFilters.overlayPosition(clipFrame)
+
                 // 2. Apply background/padding
                 if (bgOp?.type == EditOperation.CanvasBackground.BackgroundType.BLUR) {
                     val blur = bgOp.blurRadius
                     val bgScale = "format=yuv420p,scale=$mainWidth:$mainHeight:force_original_aspect_ratio=increase,crop=$mainWidth:$mainHeight,boxblur=$blur"
-                    val fgScale = "scale=$mainWidth:$mainHeight:force_original_aspect_ratio=decrease"
                     filterParts.add("[pre$i]split=2[bg_orig$i][fg_orig$i]")
                     filterParts.add("[bg_orig$i]$bgScale[bg$i]")
                     filterParts.add("[fg_orig$i]$fgScale[fg$i]")
-                    filterParts.add("[bg$i][fg$i]overlay=(W-w)/2:(H-h)/2,setsar=1,fps=30,format=yuv420p[norm$i]")
+                    filterParts.add("[bg$i][fg$i]overlay=$fgPosition,setsar=1,fps=30,format=yuv420p[norm$i]")
                 } else if (bgOp?.type == EditOperation.CanvasBackground.BackgroundType.IMAGE && bgImageIndex != -1) {
                     val bgScale = "scale=$mainWidth:$mainHeight:force_original_aspect_ratio=increase,crop=$mainWidth:$mainHeight"
-                    val fgScale = "scale=$mainWidth:$mainHeight:force_original_aspect_ratio=decrease"
                     filterParts.add("[$bgImageIndex:v]$bgScale[bg$i]")
                     filterParts.add("[pre$i]$fgScale[fg$i]")
                     // Use shortest=1 in case the loop goes on forever, but we specified -loop 1 which creates an infinite stream for image
-                    filterParts.add("[bg$i][fg$i]overlay=(W-w)/2:(H-h)/2:shortest=1,setsar=1,fps=30,format=yuv420p[norm$i]")
+                    filterParts.add("[bg$i][fg$i]overlay=$fgPosition:shortest=1,setsar=1,fps=30,format=yuv420p[norm$i]")
                 } else {
                     // Default COLOR
                     val color = bgOp?.colorHex ?: "black"
                     val padColor = if (color.startsWith("#")) color else "black"
                     // Create a solid color background of mainWidth x mainHeight
                     filterParts.add("color=c=$padColor:s=${mainWidth}x${mainHeight}:r=30[bg$i]")
-                    filterParts.add("[pre$i]scale=$mainWidth:$mainHeight:force_original_aspect_ratio=decrease[fg$i]")
-                    filterParts.add("[bg$i][fg$i]overlay=(W-w)/2:(H-h)/2:shortest=1,setsar=1,fps=30,format=yuv420p[norm$i]")
+                    filterParts.add("[pre$i]$fgScale[fg$i]")
+                    filterParts.add("[bg$i][fg$i]overlay=$fgPosition:shortest=1,setsar=1,fps=30,format=yuv420p[norm$i]")
                 }
 
                 val isClipMuted = operations.filterIsInstance<EditOperation.MuteClip>().find { it.index == i }?.isMuted ?: false
@@ -1376,6 +1385,14 @@ class VideoEditingViewModel : ViewModel() {
             val combinedFilters = prepFilters.joinToString(",")
             filterComplexParts.add("[0:v]${combinedFilters}[cfv]")
             currentInputVideoLabel = "[cfv]"
+        }
+
+        // Encuadre del clip (M-198): va antes de textos, imágenes y recorte, así que los overlays
+        // no se mueven con el video y el recorte se aplica sobre el lienzo ya encuadrado.
+        val mainFrame = operations.filterIsInstance<EditOperation.FrameMain>().lastOrNull()?.frame
+        ClipFrameFilters.framedStage(currentInputVideoLabel, "[framed]", mainFrame)?.let { stages ->
+            filterComplexParts.addAll(stages)
+            currentInputVideoLabel = "[framed]"
         }
 
         // ── Video filter stages (crop, text, image overlays) ──
