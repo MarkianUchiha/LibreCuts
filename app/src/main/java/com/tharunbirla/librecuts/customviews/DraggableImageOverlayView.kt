@@ -227,9 +227,12 @@ class DraggableImageOverlayView @JvmOverloads constructor(
                       path.endsWith(".3gp", ignoreCase = true)
         if (isGif) {
             try {
-                val movie = android.graphics.Movie.decodeFile(path)
-                if (movie != null && movie.width() > 0 && movie.height() > 0) {
-                    return movie.width().toFloat() / movie.height().toFloat()
+                // Solo se necesitan las dimensiones: inJustDecodeBounds las lee del encabezado
+                // sin decodificar el GIF completo en memoria.
+                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                BitmapFactory.decodeFile(path, bounds)
+                if (bounds.outWidth > 0 && bounds.outHeight > 0) {
+                    return bounds.outWidth.toFloat() / bounds.outHeight.toFloat()
                 }
             } catch (e: Exception) {
                 Log.e("DraggableImage", "Error getting GIF aspect: ${e.message}")

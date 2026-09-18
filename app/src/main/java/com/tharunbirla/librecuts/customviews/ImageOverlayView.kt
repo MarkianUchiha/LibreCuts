@@ -9,6 +9,7 @@ import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.View
 import com.tharunbirla.librecuts.models.EditOperation
+import com.tharunbirla.librecuts.utils.GifFrameSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -29,7 +30,7 @@ class ImageOverlayView @JvmOverloads constructor(
     
     // Caches
     private val bitmapCache = mutableMapOf<String, Bitmap>()
-    private val movieCache = mutableMapOf<String, android.graphics.Movie>()
+    private val gifCache = mutableMapOf<String, GifFrameSource>()
     private val retrieverCache = mutableMapOf<String, android.media.MediaMetadataRetriever>()
     private val lastFrameCache = mutableMapOf<String, Pair<Long, Bitmap>>()
     
@@ -127,7 +128,7 @@ class ImageOverlayView @JvmOverloads constructor(
         }
         retrieverCache.clear()
         lastFrameCache.clear()
-        movieCache.clear()
+        gifCache.clear()
         bitmapCache.clear()
         reusableBitmaps.values.forEach { it.recycle() }
         reusableBitmaps.clear()
@@ -316,18 +317,18 @@ class ImageOverlayView @JvmOverloads constructor(
                 var effectiveTimeMs = (relativeTimeMs * speed).toLong()
                 
                 if (isGif) {
-                    var movie = movieCache[op.imageUri.toString()]
-                    if (movie == null) {
+                    var gif = gifCache[op.imageUri.toString()]
+                    if (gif == null) {
                         try {
-                            movie = android.graphics.Movie.decodeFile(path)
-                            if (movie != null) movieCache[op.imageUri.toString()] = movie
+                            gif = GifFrameSource.decode(path)
+                            if (gif != null) gifCache[op.imageUri.toString()] = gif
                         } catch (e: Exception) { }
                     }
-                    if (movie != null && movie.duration() > 0) {
+                    if (gif != null && gif.durationMs > 0) {
                         effectiveTimeMs = if (op.isLooping) {
-                            effectiveTimeMs % movie.duration()
+                            effectiveTimeMs % gif.durationMs
                         } else {
-                            Math.min(effectiveTimeMs, (movie.duration() - 1).toLong())
+                            Math.min(effectiveTimeMs, (gif.durationMs - 1).toLong())
                         }
                     }
                 } else {
@@ -360,19 +361,12 @@ class ImageOverlayView @JvmOverloads constructor(
                         scope.launch(Dispatchers.Default) {
                             var bitmap: Bitmap? = null
                             if (isGif) {
-                                val movie = movieCache[op.imageUri.toString()]
-                                if (movie != null && movie.width() > 0 && movie.height() > 0) {
+                                val gif = gifCache[op.imageUri.toString()]
+                                if (gif != null && gif.width > 0 && gif.height > 0) {
                                     try {
-                                        var tempBitmap = reusableBitmaps["${op.id}_gif"]
-                                        if (tempBitmap == null || tempBitmap.width != movie.width() || tempBitmap.height != movie.height()) {
-                                            tempBitmap = Bitmap.createBitmap(movie.width(), movie.height(), Bitmap.Config.ARGB_8888)
-                                            reusableBitmaps["${op.id}_gif"] = tempBitmap
-                                        }
-                                        tempBitmap.eraseColor(android.graphics.Color.TRANSPARENT)
-                                        val tempCanvas = Canvas(tempBitmap)
-                                        movie.setTime(effectiveTimeMs.toInt())
-                                        movie.draw(tempCanvas, 0f, 0f)
-                                        bitmap = tempBitmap
+                                        val frame = gif.renderFrame(effectiveTimeMs.toInt(), reusableBitmaps["${op.id}_gif"])
+                                        reusableBitmaps["${op.id}_gif"] = frame
+                                        bitmap = frame
                                     } catch (e: Exception) { }
                                 }
                             } else {
