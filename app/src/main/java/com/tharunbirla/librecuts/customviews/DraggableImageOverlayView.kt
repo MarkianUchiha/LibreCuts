@@ -37,6 +37,8 @@ class DraggableImageOverlayView @JvmOverloads constructor(
     var onImageCommitted: ((uri: Uri, relativeX: Float, relativeY: Float, relativeWidth: Float, relativeHeight: Float, rotationAngle: Float, opacity: Float, isMirrored: Boolean, maskConfig: com.tharunbirla.librecuts.models.EditOperation.MaskConfig) -> Unit)? = null
     var onPositionChanged: ((relativeX: Float, relativeY: Float) -> Unit)? = null
     var onMaskChanged: ((com.tharunbirla.librecuts.models.EditOperation.MaskConfig) -> Unit)? = null
+    /** Toque fuera de la imagen: la Activity decide si guardar o seleccionar otro overlay. */
+    var onTapOutside: ((x: Float, y: Float) -> Unit)? = null
 
     // ── State ─────────────────────────────────────────────────────────────────
     private var isEditingActive = false
@@ -121,7 +123,19 @@ class DraggableImageOverlayView @JvmOverloads constructor(
         strokeWidth = 3f
     }
 
+    private val hitSlopPx = 16f * resources.displayMetrics.density
+
+    // Punto medio de los dedos en el evento anterior del pellizco: la imagen lo sigue.
+    private var lastFocusX = 0f
+    private var lastFocusY = 0f
+
     private val scaleDetector = ScaleGestureDetector(context, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+        override fun onScaleBegin(detector: ScaleGestureDetector): Boolean {
+            lastFocusX = detector.focusX
+            lastFocusY = detector.focusY
+            return true
+        }
+
         override fun onScale(detector: ScaleGestureDetector): Boolean {
             val scaleFactor = detector.scaleFactor
             if (isMaskEditingMode) {
@@ -133,13 +147,50 @@ class DraggableImageOverlayView @JvmOverloads constructor(
                 invalidate()
                 return true
             }
+            // Se mueve en unidades relativas porque updateImageViewSizeAndPosition recalcula la
+            // posición en pantalla desde relativeX/Y; mover imageView.x directo se perdería.
+            val videoRect = getVideoRect()
+            if (videoRect.width() > 0 && videoRect.height() > 0) {
+                relativeX = (relativeX + (detector.focusX - lastFocusX) / videoRect.width()).coerceIn(0f, 1f)
+                relativeY = (relativeY + (detector.focusY - lastFocusY) / videoRect.height()).coerceIn(0f, 1f)
+            }
+            lastFocusX = detector.focusX
+            lastFocusY = detector.focusY
+
             relativeWidth = (relativeWidth * scaleFactor).coerceIn(0.05f, 5.0f)
             val videoRatio = if (videoHeight > 0) videoWidth.toFloat() / videoHeight else 1.0f
             relativeHeight = relativeWidth * videoRatio / imageAspectRatio
             updateImageViewSizeAndPosition()
             return true
         }
+
+        override fun onScaleEnd(detector: ScaleGestureDetector) {
+            // relativeX/Y ya son la verdad; imageView.width puede ir atrasado hasta el próximo layout,
+            // así que no se recalculan con updateRelativePosition().
+            if (!isMaskEditingMode) onPositionChanged?.invoke(relativeX, relativeY)
+        }
     })
+
+    private val tapDetector = android.view.GestureDetector(context, object : android.view.GestureDetector.SimpleOnGestureListener() {
+        override fun onDown(e: MotionEvent): Boolean = true
+
+        override fun onSingleTapUp(e: MotionEvent): Boolean {
+            if (!isOnImage(e.x, e.y)) onTapOutside?.invoke(e.x, e.y)
+            return true
+        }
+    })
+
+    /** Si (x, y) cae sobre la imagen en su posición actual, girada, con margen táctil. */
+    private fun isOnImage(x: Float, y: Float): Boolean {
+        val w = imageView.width.toFloat()
+        val h = imageView.height.toFloat()
+        val cx = imageView.x + w / 2f
+        val cy = imageView.y + h / 2f
+        val point = floatArrayOf(x, y)
+        android.graphics.Matrix().apply { setRotate(-rotationAngle, cx, cy) }.mapPoints(point)
+        return point[0] >= cx - w / 2f - hitSlopPx && point[0] <= cx + w / 2f + hitSlopPx &&
+            point[1] >= cy - h / 2f - hitSlopPx && point[1] <= cy + h / 2f + hitSlopPx
+    }
 
     init {
         visibility = GONE
@@ -428,45 +479,16 @@ class DraggableImageOverlayView @JvmOverloads constructor(
 
     // ── Touch handling for drag and scale ───────────────────────────────────────
 
-    @SuppressLint("ClickableViewAccessibility")
-    override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
-        if (!isEditingActive) return false
-
-        scaleDetector.onTouchEvent(ev)
-
-        if (scaleDetector.isInProgress || ev.pointerCount > 1) {
-            return true
-        }
-
-        when (ev.actionMasked) {
-            MotionEvent.ACTION_DOWN -> {
-                val touchX = ev.x
-                val touchY = ev.y
-                val imgLeft = imageView.left.toFloat()
-                val imgTop = imageView.top.toFloat()
-                val imgRight = imageView.right.toFloat()
-                val imgBottom = imageView.bottom.toFloat()
-
-                // Check if touch is inside the image bounds
-                if (touchX in imgLeft..imgRight && touchY in imgTop..imgBottom) {
-                    if (isColorPickingMode) {
-                        return true
-                    }
-                    isDragging = true
-                    dragOffsetX = touchX - imageView.x
-                    dragOffsetY = touchY - imageView.y
-                    return true
-                }
-            }
-        }
-        return false
-    }
+    // El hijo es un ImageView sin toques propios: con la edición activa, todo el gesto es de esta vista.
+    override fun onInterceptTouchEvent(ev: MotionEvent): Boolean = isEditingActive
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (!isEditingActive) return false
 
         scaleDetector.onTouchEvent(event)
+        // En máscara y cuentagotas el toque tiene otro significado: no cuenta como "tocar fuera".
+        if (!isMaskEditingMode && !isColorPickingMode) tapDetector.onTouchEvent(event)
 
         if (scaleDetector.isInProgress || event.pointerCount > 1) {
             isDragging = false
@@ -479,14 +501,17 @@ class DraggableImageOverlayView @JvmOverloads constructor(
                     pickColorAt(event.x, event.y)
                     return true
                 }
-                isDragging = true
                 if (isMaskEditingMode) {
+                    // La máscara se sigue moviendo arrastrando en cualquier parte, como antes.
+                    isDragging = true
                     dragOffsetX = event.x
                     dragOffsetY = event.y
-                } else {
+                } else if (isOnImage(event.x, event.y)) {
+                    isDragging = true
                     dragOffsetX = event.x - imageView.x
                     dragOffsetY = event.y - imageView.y
                 }
+                // Se reclama aunque caiga fuera: hace falta el resto del gesto para detectar el toque.
                 return true
             }
             MotionEvent.ACTION_MOVE -> {
