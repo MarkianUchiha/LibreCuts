@@ -450,10 +450,6 @@ class VideoEditingActivity : AppCompatActivity() {
     private var draggableTextOverlay: DraggableTextOverlayView? = null
     private var textEditingToolbar: View? = null
     private var isTextEditingActive = false
-        set(value) {
-            field = value
-            updateImageTapToSelect()
-        }
 
     // Inline image overlay editing state
     private var draggableImageOverlay: DraggableImageOverlayView? = null
@@ -475,10 +471,6 @@ class VideoEditingActivity : AppCompatActivity() {
     private var initialCropOperation: com.tharunbirla.librecuts.models.EditOperation.Crop? = null
     private var subtitlesEditingToolbar: View? = null
     private var isSubtitlesEditingActive = false
-        set(value) {
-            field = value
-            updateImageTapToSelect()
-        }
 
     private var keyframeEditingToolbar: View? = null
     private var isKeyframeEditingMode = false
@@ -955,6 +947,7 @@ class VideoEditingActivity : AppCompatActivity() {
                 }
                 // Tocar un texto en el preview lo selecciona igual que tocar su pista (mismo colector).
                 overlay.onTextTapped = { opId -> viewModel.selectOperation(opId) }
+                overlay.canSelectByTap = ::canSelectOverlayByTap
             }
         } catch (e: Exception) {
             Log.w(TAG, "TextOverlayView not found in layout: ${e.message}")
@@ -965,6 +958,7 @@ class VideoEditingActivity : AppCompatActivity() {
             findViewById<ImageOverlayView>(R.id.imageOverlayView)?.also { overlay ->
                 // Igual que los textos: tocar una imagen en el preview la selecciona (mismo colector).
                 overlay.onImageTapped = { opId -> viewModel.selectOperation(opId) }
+                overlay.canSelectByTap = ::canSelectImageByTap
             }
         } catch (e: Exception) {
             Log.w(TAG, "ImageOverlayView not found in layout: ${e.message}")
@@ -2942,12 +2936,18 @@ class VideoEditingActivity : AppCompatActivity() {
         imageOverlayView?.findImageAt(x, y) ?: textOverlayView?.findTextAt(x, y)
 
     /**
-     * ImageOverlayView queda encima de las vistas de texto y subtítulos. Mientras se editan, el
-     * toque es para ellas: arrastrar un texto que pasa sobre una imagen no debe seleccionarla.
+     * Recorte y audio no se cierran al cambiar de selección (el recuadro de recorte quedaría encima
+     * y el preview de audio seguiría sonando), así que mientras están abiertos no se selecciona tocando.
      */
-    private fun updateImageTapToSelect() {
-        imageOverlayView?.isTapToSelectEnabled = !isTextEditingActive && !isSubtitlesEditingActive
-    }
+    private fun canSelectOverlayByTap(): Boolean =
+        cropEditingToolbar?.visibility != View.VISIBLE && audioEditingToolbar?.visibility != View.VISIBLE
+
+    /**
+     * Además, ImageOverlayView queda encima de las vistas de texto y subtítulos: mientras se editan,
+     * el toque es para ellas (arrastrar un texto que pasa sobre una imagen no debe seleccionarla).
+     */
+    private fun canSelectImageByTap(): Boolean =
+        canSelectOverlayByTap() && !isTextEditingActive && !isSubtitlesEditingActive
 
     private fun exitTextEditingMode() {
         isTextEditingActive = false

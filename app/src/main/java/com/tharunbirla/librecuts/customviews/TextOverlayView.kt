@@ -113,6 +113,9 @@ class TextOverlayView @JvmOverloads constructor(
 
     var onTextTapped: ((operationId: String) -> Unit)? = null
 
+    /** Se consulta en cada DOWN; la Activity lo apaga cuando otro modo (recorte, audio) es dueño del toque. */
+    var canSelectByTap: () -> Boolean = { true }
+
     private val tapDetector = android.view.GestureDetector(context, object : android.view.GestureDetector.SimpleOnGestureListener() {
         override fun onDown(e: android.view.MotionEvent): Boolean = true
 
@@ -554,7 +557,9 @@ class TextOverlayView @JvmOverloads constructor(
         if (!isSubtitlesEditingActive || subtitleOperation == null) {
             if (onTextTapped == null) return super.onTouchEvent(event)
             // Solo se reclama el toque si empieza sobre un texto; si no, sigue a las vistas de abajo.
-            if (event.actionMasked == android.view.MotionEvent.ACTION_DOWN && findTextAt(event.x, event.y) == null) {
+            if (event.actionMasked == android.view.MotionEvent.ACTION_DOWN &&
+                (!canSelectByTap() || findTextAt(event.x, event.y) == null)
+            ) {
                 return false
             }
             return tapDetector.onTouchEvent(event)

@@ -64,10 +64,11 @@ class ImageOverlayView @JvmOverloads constructor(
     var onImageTapped: ((operationId: String) -> Unit)? = null
 
     /**
-     * Esta vista queda encima de DraggableTextOverlayView. Con un texto en edición se apaga para
-     * que el toque llegue al texto (arrastrarlo o tocar fuera, que guarda antes de cambiar).
+     * Se consulta en cada DOWN. La Activity lo apaga cuando otro modo de edición es dueño del
+     * toque (texto, subtítulos, recorte, audio). Es una función y no un Boolean para leer el estado
+     * real en ese momento, sin sincronizar un flag desde cada camino que abre o cierra un modo.
      */
-    var isTapToSelectEnabled = true
+    var canSelectByTap: () -> Boolean = { true }
 
     private val tapDetector = android.view.GestureDetector(context, object : android.view.GestureDetector.SimpleOnGestureListener() {
         override fun onDown(e: android.view.MotionEvent): Boolean = true
@@ -91,9 +92,11 @@ class ImageOverlayView @JvmOverloads constructor(
 
     @android.annotation.SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: android.view.MotionEvent): Boolean {
-        if (onImageTapped == null || !isTapToSelectEnabled) return super.onTouchEvent(event)
+        if (onImageTapped == null) return super.onTouchEvent(event)
         // Solo se reclama el toque si empieza sobre una imagen; si no, sigue a las vistas de abajo.
-        if (event.actionMasked == android.view.MotionEvent.ACTION_DOWN && findImageAt(event.x, event.y) == null) {
+        if (event.actionMasked == android.view.MotionEvent.ACTION_DOWN &&
+            (!canSelectByTap() || findImageAt(event.x, event.y) == null)
+        ) {
             return false
         }
         return tapDetector.onTouchEvent(event)

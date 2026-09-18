@@ -99,11 +99,11 @@ class ImageOverlayHitTest {
             val view = createView(image("izq", 0.25f, 0.5f))
             var tapped: String? = null
             view.onImageTapped = { tapped = it }
-            view.isTapToSelectEnabled = false
+            view.canSelectByTap = { false }
 
             val consumed = tap(view, 250f, 300f)
             assertNull(tapped)
-            assertFalse("con un texto en edición el toque es para el texto", consumed)
+            assertFalse("con otro modo de edición abierto el toque sigue su camino", consumed)
         }
     }
 

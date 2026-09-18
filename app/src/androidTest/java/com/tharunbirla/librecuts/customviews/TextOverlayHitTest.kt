@@ -66,6 +66,20 @@ class TextOverlayHitTest {
         }
     }
 
+    @Test
+    fun tapIsNotConsumedWhenSelectionByTapIsDisabled() {
+        instrumentation.runOnMainSync {
+            val view = createView(text("izq", "Uno", 0.25f, 0.5f))
+            var tapped: String? = null
+            view.onTextTapped = { tapped = it }
+            view.canSelectByTap = { false }
+
+            val consumed = tap(view, 250f, 300f)
+            assertNull(tapped)
+            assertFalse("con recorte o audio abiertos el toque sigue su camino", consumed)
+        }
+    }
+
     private fun text(id: String, value: String, rx: Float, ry: Float, startMs: Long = 0L) =
         EditOperation.AddText(
             text = value, fontSize = 40, position = TextPosition.CENTER,
