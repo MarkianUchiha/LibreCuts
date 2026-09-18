@@ -7381,7 +7381,9 @@ class VideoEditingActivity : AppCompatActivity() {
 
         if (isTimelineExpanded) {
             btnExpandTimeline.setImageResource(R.drawable.ic_collapse_24)
-            playerContainer.visibility = View.GONE
+            // Se oculta la fila completa (no solo el preview): si no, su weight=1 seguiría
+            // reservando espacio y el timeline no podría expandirse.
+            findViewById<View>(R.id.workspaceRow).visibility = View.GONE
             pipPlayerContainer.visibility = View.VISIBLE
             reparentCanvasContainer(pipPlayerContainer)
 
@@ -7397,7 +7399,7 @@ class VideoEditingActivity : AppCompatActivity() {
         } else {
             btnExpandTimeline.setImageResource(R.drawable.ic_expand_24)
             pipPlayerContainer.visibility = View.GONE
-            playerContainer.visibility = View.VISIBLE
+            findViewById<View>(R.id.workspaceRow).visibility = View.VISIBLE
             reparentCanvasContainer(playerContainer)
 
             val lpSeeker = seekerContainer.layoutParams as LinearLayout.LayoutParams

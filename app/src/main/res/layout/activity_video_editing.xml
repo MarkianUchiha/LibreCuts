@@ -130,11 +130,28 @@
             </LinearLayout>
         </LinearLayout>
 
+        <!-- Fila de trabajo: en tablet horizontal suma el riel de herramientas (izq.) y el
+             panel de opciones (der.) alrededor del preview; en vertical ambos quedan gone y la
+             fila se ve igual que el preview solo. Ver applyWorkspaceLayout(). -->
+        <LinearLayout
+            android:id="@+id/workspaceRow"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal">
+
+        <ScrollView
+            android:id="@+id/toolRail"
+            android:layout_width="88dp"
+            android:layout_height="match_parent"
+            android:scrollbars="none"
+            android:visibility="gone" />
+
         <!-- Video Player Frame Container -->
         <FrameLayout
             android:id="@+id/playerContainer"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
             android:layout_weight="1"
             android:layout_marginHorizontal="12dp"
             android:layout_marginTop="4dp"
@@ -269,6 +286,19 @@
                 android:contentDescription="Fullscreen"
                 app:tint="@color/textColor" />
         </FrameLayout>
+
+        <ScrollView
+            android:id="@+id/sidePanel"
+            android:layout_width="360dp"
+            android:layout_height="match_parent"
+            android:layout_marginEnd="12dp"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="8dp"
+            android:background="@color/floatingPanelBackground"
+            android:fillViewport="true"
+            android:visibility="gone" />
+
+        </LinearLayout>
 
         <LinearLayout
             android:id="@+id/seekerContainer"
@@ -542,6 +572,14 @@
                 android:layout_marginBottom="4dp" />
         </LinearLayout>
 
+        <!-- Contenedor de los toolbars de cada herramienta: se mueve completo al sidePanel
+             en tablet horizontal (applyWorkspaceLayout) sin tocar cada include. -->
+        <LinearLayout
+            android:id="@+id/toolOptionsHost"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
         <!-- Text Editing Toolbar (inline mode, hidden by default) -->
         <include
             android:id="@+id/textEditingToolbar"
@@ -622,6 +660,8 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:visibility="gone" />
+
+        </LinearLayout>
 
         <HorizontalScrollView
             android:id="@+id/editingControlsScroll"
