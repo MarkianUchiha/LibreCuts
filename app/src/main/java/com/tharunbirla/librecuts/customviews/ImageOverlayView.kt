@@ -56,6 +56,49 @@ class ImageOverlayView @JvmOverloads constructor(
             invalidate()
         }
 
+    // Rect y rotación de cada imagen en el último onDraw, en orden de dibujado (la última queda
+    // arriba). Se guardan aunque el bitmap aún no esté decodificado: la imagen ya ocupa su lugar.
+    private val drawnImageBounds = LinkedHashMap<String, Pair<RectF, Float>>()
+    private val hitSlopPx = 16f * resources.displayMetrics.density
+
+    var onImageTapped: ((operationId: String) -> Unit)? = null
+
+    /**
+     * Esta vista queda encima de DraggableTextOverlayView. Con un texto en edición se apaga para
+     * que el toque llegue al texto (arrastrarlo o tocar fuera, que guarda antes de cambiar).
+     */
+    var isTapToSelectEnabled = true
+
+    private val tapDetector = android.view.GestureDetector(context, object : android.view.GestureDetector.SimpleOnGestureListener() {
+        override fun onDown(e: android.view.MotionEvent): Boolean = true
+
+        override fun onSingleTapUp(e: android.view.MotionEvent): Boolean {
+            findImageAt(e.x, e.y)?.let { onImageTapped?.invoke(it) }
+            return true
+        }
+    })
+
+    /** Id de la imagen visible bajo (x, y), considerando su rotación y un margen táctil. */
+    fun findImageAt(x: Float, y: Float): String? =
+        drawnImageBounds.entries.reversed().firstOrNull { (_, bounds) ->
+            val (rect, rotation) = bounds
+            // Se lleva el punto al marco sin rotar de la imagen en vez de rotar el rect.
+            val point = floatArrayOf(x, y)
+            android.graphics.Matrix().apply { setRotate(-rotation, rect.centerX(), rect.centerY()) }.mapPoints(point)
+            point[0] >= rect.left - hitSlopPx && point[0] <= rect.right + hitSlopPx &&
+                point[1] >= rect.top - hitSlopPx && point[1] <= rect.bottom + hitSlopPx
+        }?.key
+
+    @android.annotation.SuppressLint("ClickableViewAccessibility")
+    override fun onTouchEvent(event: android.view.MotionEvent): Boolean {
+        if (onImageTapped == null || !isTapToSelectEnabled) return super.onTouchEvent(event)
+        // Solo se reclama el toque si empieza sobre una imagen; si no, sigue a las vistas de abajo.
+        if (event.actionMasked == android.view.MotionEvent.ACTION_DOWN && findImageAt(event.x, event.y) == null) {
+            return false
+        }
+        return tapDetector.onTouchEvent(event)
+    }
+
     fun setImageOperations(operations: List<EditOperation.AddImageOverlay>) {
         this.imageOperations = operations
         
@@ -277,6 +320,7 @@ class ImageOverlayView @JvmOverloads constructor(
         super.onDraw(canvas)
 
         val videoRect = getVideoRect()
+        drawnImageBounds.clear()
 
         for (op in imageOperations) {
             if (op.id == hiddenOperationId) continue
@@ -307,6 +351,7 @@ class ImageOverlayView @JvmOverloads constructor(
                 relativeY = interpolatedPos.second,
                 opacity = interpolatedOpacity
             )
+            drawnImageBounds[op.id] = computeDstRect(interpolatedOp, videoRect) to op.rotationAngle
 
             if (isGif || isVideo) {
                 val speed = if (op.speedKeyframes.isNotEmpty()) {
@@ -405,20 +450,19 @@ class ImageOverlayView @JvmOverloads constructor(
         }
     }
     
-    private fun drawBitmapOp(canvas: Canvas, bitmap: Bitmap, op: EditOperation.AddImageOverlay, videoRect: RectF) {
+    private fun computeDstRect(op: EditOperation.AddImageOverlay, videoRect: RectF): RectF {
         val imgW = op.relativeWidth * videoRect.width()
         val imgH = op.relativeHeight * videoRect.height()
-        
         val centerX = videoRect.left + (op.relativeX * videoRect.width())
         val centerY = videoRect.top + (op.relativeY * videoRect.height())
-        
-        val dstRect = RectF(
-            centerX - imgW / 2f,
-            centerY - imgH / 2f,
-            centerX + imgW / 2f,
-            centerY + imgH / 2f
-        )
-        
+        return RectF(centerX - imgW / 2f, centerY - imgH / 2f, centerX + imgW / 2f, centerY + imgH / 2f)
+    }
+
+    private fun drawBitmapOp(canvas: Canvas, bitmap: Bitmap, op: EditOperation.AddImageOverlay, videoRect: RectF) {
+        val dstRect = computeDstRect(op, videoRect)
+        val centerX = dstRect.centerX()
+        val centerY = dstRect.centerY()
+
         val oldAlpha = paint.alpha
         paint.alpha = (op.opacity * 255).toInt().coerceIn(0, 255)
         canvas.save()
