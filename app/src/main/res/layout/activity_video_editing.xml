@@ -207,6 +207,11 @@
                 </com.tharunbirla.librecuts.customviews.MaskedFrameLayout>
             </FrameLayout>
 
+            <!-- Debajo de los overlays a propósito: solo recibe los toques que ningún texto o imagen reclamó. -->
+            <com.tharunbirla.librecuts.customviews.ClipFrameGestureView
+                android:id="@+id/clipFrameGestureView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"/>
 
             <com.tharunbirla.librecuts.customviews.TextOverlayView
                 android:id="@+id/textOverlayView"

@@ -970,6 +970,22 @@ class VideoEditingActivity : AppCompatActivity() {
             null
         }
 
+        findViewById<com.tharunbirla.librecuts.customviews.ClipFrameGestureView>(R.id.clipFrameGestureView)?.let { gestures ->
+            gestures.canHandle = { isVideoLoaded && canSelectOverlayByTap() && !isKeyframeEditingMode && !isHandwritingActive }
+            // Solo se encuadra el clip seleccionado y si es el que se ve: si no, el gesto movería algo invisible.
+            gestures.canTransform = {
+                videoEditingToolbar?.visibility == View.VISIBLE &&
+                    selectedVideoIndex != null && selectedVideoIndex == activeClipIndex(getSequenceItems())
+            }
+            gestures.currentFrame = { activeClipFrame }
+            gestures.referenceSize = { clipFrameReference.width() to clipFrameReference.height() }
+            gestures.onTap = { handleVideoTap() }
+            gestures.onFrameChanging = { applyClipFramePreview(it) }
+            gestures.onFrameCommitted = { frame ->
+                selectedVideoIndex?.let { viewModel.updateClipFrame(it, frame) }
+            }
+        }
+
         draggableTextOverlay = try {
             findViewById<DraggableTextOverlayView>(R.id.draggableTextOverlay)?.also { overlay ->
                 overlay.isSnappingEnabled = isMagnetEnabled
@@ -2451,13 +2467,34 @@ class VideoEditingActivity : AppCompatActivity() {
     /** Recalcula el encuadre del clip bajo el playhead; para cambios del proyecto con el video en pausa. */
     private fun refreshClipFramePreview() {
         if (!isVideoLoaded) return
+        val items = getSequenceItems()
+        activeClipFrame = activeClipIndex(items)?.let { items[it].frame }
+        applyClipFramePreview(activeClipFrame)
+    }
+
+    /** Índice del clip bajo el playhead, o null si la secuencia está vacía. */
+    private fun activeClipIndex(items: List<EditOperation.MergeItem>): Int? {
         val position = getGlobalPosition()
         var start = 0L
-        activeClipFrame = getSequenceItems().firstOrNull { item ->
+        items.forEachIndexed { index, item ->
             val end = start + item.trimmedDurationMs
-            (position in start..end).also { start = end }
-        }?.frame
-        applyClipFramePreview(activeClipFrame)
+            if (position in start..end) return index
+            start = end
+        }
+        return null
+    }
+
+    /** Tocar el video en el preview: mismo camino que tocar su pista (selecciona o deselecciona). */
+    private fun handleVideoTap() {
+        val index = activeClipIndex(getSequenceItems()) ?: return
+        if (selectedVideoIndex == index && videoEditingToolbar?.visibility == View.VISIBLE) {
+            selectedVideoIndex = null
+            exitVideoEditingMode()
+        } else {
+            selectedVideoIndex = index
+            enterVideoEditingMode()
+        }
+        viewModel.project.value?.let { renderTracks(it) }
     }
 
     @SuppressLint("InflateParams")
