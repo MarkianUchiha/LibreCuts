@@ -49,6 +49,9 @@ class DraggableTextOverlayView @JvmOverloads constructor(
     var onEditingFocused: (() -> Unit)? = null
     var onPositionChanged: ((relativeX: Float, relativeY: Float) -> Unit)? = null
 
+    /** Tap fuera del texto: la Activity decide si guardar y deseleccionar o seleccionar otro texto. */
+    var onTapOutside: ((x: Float, y: Float) -> Unit)? = null
+
     // ── State ─────────────────────────────────────────────────────────────────
     private var isEditingActive = false
     private var currentFontSize = 36
@@ -70,10 +73,15 @@ class DraggableTextOverlayView @JvmOverloads constructor(
     // evento, agrandar nunca suma 1 y achicar siempre resta: el pellizco no agranda y achica de más.
     // Por eso el tamaño se acumula en Float durante el gesto y solo se redondea para aplicarlo.
     private var gestureFontSize = 0f
+    // Punto medio de los dedos en el evento anterior: el texto lo sigue mientras se pellizca.
+    private var lastFocusX = 0f
+    private var lastFocusY = 0f
 
     private val scaleDetector = ScaleGestureDetector(context, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
         override fun onScaleBegin(detector: ScaleGestureDetector): Boolean {
             gestureFontSize = currentFontSize.toFloat()
+            lastFocusX = detector.focusX
+            lastFocusY = detector.focusY
             return true
         }
 
@@ -82,6 +90,36 @@ class DraggableTextOverlayView @JvmOverloads constructor(
             val newSize = Math.round(gestureFontSize)
             if (newSize != currentFontSize) {
                 setFontSize(newSize)
+            }
+            editText.x += detector.focusX - lastFocusX
+            editText.y += detector.focusY - lastFocusY
+            lastFocusX = detector.focusX
+            lastFocusY = detector.focusY
+            invalidate()
+            return true
+        }
+
+        // Sin esto la posición del pellizco no se guardaba: solo el arrastre de un dedo la persistía.
+        override fun onScaleEnd(detector: ScaleGestureDetector) {
+            updateRelativePosition()
+        }
+    })
+
+    // Seleccionado: los toques sobre el texto lo mueven. Escribiendo: son del EditText (cursor).
+    private var isTextInputActive = false
+
+    private val tapDetector = android.view.GestureDetector(context, object : android.view.GestureDetector.SimpleOnGestureListener() {
+        override fun onDown(e: MotionEvent): Boolean = true
+
+        override fun onSingleTapUp(e: MotionEvent): Boolean {
+            if (!isTouchOnText(e.x, e.y)) onTapOutside?.invoke(e.x, e.y)
+            return true
+        }
+
+        override fun onDoubleTap(e: MotionEvent): Boolean {
+            if (isTouchOnText(e.x, e.y)) {
+                requestEditingFocus()
+                onEditingFocused?.invoke()
             }
             return true
         }
@@ -242,6 +280,8 @@ class DraggableTextOverlayView @JvmOverloads constructor(
         editText.setTextColor(Color.WHITE)
         updateFontSizeOnScreen()
         visibility = VISIBLE
+        // Un texto nuevo hay que escribirlo: entra directo con teclado.
+        isTextInputActive = true
 
         // Position at center
         post {
@@ -275,11 +315,12 @@ class DraggableTextOverlayView @JvmOverloads constructor(
         }
         updateFontSizeOnScreen()
         visibility = VISIBLE
+        // Reeditar entra seleccionado (mover/escalar); el teclado solo con la pestaña o doble toque.
+        // Antes pedía foco aquí y el primer toque sobre el texto abría el cursor en vez de moverlo.
+        isTextInputActive = false
+        editText.clearFocus()
 
-        post {
-            positionEditTextFromRelative()
-            editText.requestFocus()
-        }
+        post { positionEditTextFromRelative() }
     }
 
     /** Deactivate and hide the text editor. */
@@ -292,8 +333,15 @@ class DraggableTextOverlayView @JvmOverloads constructor(
 
     /** Expose a way to focus the input field and pop the keyboard. */
     fun requestEditingFocus() {
+        isTextInputActive = true
         editText.requestFocus()
         showKeyboard()
+    }
+
+    /** El teclado se cerró (botón atrás, pestaña Color…): se vuelve a mover/escalar al tocar. */
+    fun onKeyboardHidden() {
+        isTextInputActive = false
+        editText.clearFocus()
     }
 
     /** Commit the current text and position, invoke the callback. */
@@ -390,35 +438,28 @@ class DraggableTextOverlayView @JvmOverloads constructor(
     // ── Touch handling for drag ───────────────────────────────────────────────
 
     @SuppressLint("ClickableViewAccessibility")
+    // Límites visuales del texto (x/y incluyen la traslación del arrastre; left/top no) con margen
+    // para que un texto chico se pueda agarrar.
+    private val touchSlopPx = 16f * resources.displayMetrics.density
+
+    private fun isTouchOnText(x: Float, y: Float): Boolean =
+        x >= editText.x - touchSlopPx && x <= editText.x + editText.width + touchSlopPx &&
+            y >= editText.y - touchSlopPx && y <= editText.y + editText.height + touchSlopPx
+
     override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
         if (!isEditingActive) return false
+        // Seleccionado: todo el gesto es de esta vista, también el toque sobre el texto (moverlo).
+        if (!isTextInputActive) return true
 
+        // Escribiendo: el toque sobre el texto es del EditText (cursor). El detector lo ve igual
+        // para poder robar el gesto si llega un segundo dedo (pellizco).
+        if (ev.actionMasked == MotionEvent.ACTION_DOWN) {
+            if (!isTouchOnText(ev.x, ev.y)) return true
+            scaleDetector.onTouchEvent(ev)
+            return false
+        }
         scaleDetector.onTouchEvent(ev)
-
-        if (scaleDetector.isInProgress || ev.pointerCount > 1) {
-            return true
-        }
-
-        when (ev.actionMasked) {
-            MotionEvent.ACTION_DOWN -> {
-                val touchX = ev.x
-                val touchY = ev.y
-                val editLeft = editText.left.toFloat()
-                val editTop = editText.top.toFloat()
-                val editRight = editText.right.toFloat()
-                val editBottom = editText.bottom.toFloat()
-
-                if (touchX in editLeft..editRight && touchY in editTop..editBottom) {
-                    return false
-                }
-
-                isDragging = true
-                dragOffsetX = touchX - editText.x
-                dragOffsetY = touchY - editText.y
-                return true
-            }
-        }
-        return false
+        return ev.pointerCount > 1
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -426,6 +467,7 @@ class DraggableTextOverlayView @JvmOverloads constructor(
         if (!isEditingActive) return false
 
         scaleDetector.onTouchEvent(event)
+        tapDetector.onTouchEvent(event)
 
         if (scaleDetector.isInProgress || event.pointerCount > 1) {
             isDragging = false
@@ -434,7 +476,9 @@ class DraggableTextOverlayView @JvmOverloads constructor(
 
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
-                isDragging = true
+                // Solo se arrastra si el dedo empieza sobre el texto; fuera, el toque es un tap
+                // (guardar/cambiar selección) o el inicio de un pellizco.
+                isDragging = isTouchOnText(event.x, event.y)
                 dragOffsetX = event.x - editText.x
                 dragOffsetY = event.y - editText.y
                 return true
@@ -489,7 +533,8 @@ class DraggableTextOverlayView @JvmOverloads constructor(
                 }
             }
         }
-        return super.onTouchEvent(event)
+        // El gesto completo es de esta vista (ver onInterceptTouchEvent).
+        return true
     }
 
     // ── Drawing ───────────────────────────────────────────────────────────────
@@ -586,6 +631,7 @@ class DraggableTextOverlayView @JvmOverloads constructor(
     fun hideKeyboard() {
         val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         imm.hideSoftInputFromWindow(editText.windowToken, 0)
+        onKeyboardHidden()
     }
 
     fun getRelativeX(): Float = relativeX
