@@ -127,7 +127,8 @@ Módulo único `:app`, paquete `com.tharunbirla.librecuts` (`app/src/main/java/c
 ## Convenciones de código
 
 - Kotlin `official` (`gradle.properties`). Clases PascalCase, funciones camelCase, backing fields `_foo` + `foo: StateFlow` con `asStateFlow()`.
-- Comentarios upstream en inglés y explican el porqué. Al contribuir a upstream mantén inglés.
+- Comentarios explican el porqué. Los heredados de upstream están en inglés; los nuevos van en español (fork propio, sin PRs a upstream).
+- APIs deprecadas sin reemplazo equivalente se aíslan en un archivo con `@file:Suppress("DEPRECATION")` y un comentario del porqué (ej. `utils/GifFrameSource.kt` envuelve `android.graphics.Movie`, única API que dibuja un GIF en un instante arbitrario). No suprimir a nivel de clases grandes.
 - Logs: `private val TAG = "NombreClase"`.
 
 ## Códigos de error (`utils/ErrorCode.kt`, enum)
