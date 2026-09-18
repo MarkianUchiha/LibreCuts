@@ -2344,7 +2344,11 @@ class VideoEditingActivity : AppCompatActivity() {
             canvasContainer.layoutParams = canvasLp
 
             // Enable clipping on canvasContainer and mainVideoMaskContainer
-            canvasContainer.clipChildren = true
+            // clipChildren recorta a cada hijo a SUS propios límites. Con true, el contenedor del video
+            // (que se mueve al encuadrar) llevaría su recorte consigo y el preview mostraría negro
+            // donde el export muestra más video. La ventana fija del recorte la da el padre de
+            // canvasContainer, que sí recorta a canvasContainer a sus límites.
+            canvasContainer.clipChildren = false
             canvasContainer.clipToPadding = true
             mainVideoMaskContainer?.clipChildren = true
             mainVideoMaskContainer?.clipToPadding = true
