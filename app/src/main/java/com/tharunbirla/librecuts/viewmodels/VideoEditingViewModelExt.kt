@@ -200,6 +200,30 @@ fun VideoEditingViewModel.updateMergeItemMask(index: Int, maskConfig: EditOperat
     })
 }
 
+/** Encuadre del clip [index]. La identidad se guarda como ausencia para no dejar operaciones vacías. */
+fun VideoEditingViewModel.updateClipFrame(index: Int, frame: EditOperation.ClipFrame) {
+    val stored = frame.takeUnless { it.isIdentity }
+    executeCommand(MutateListCommand("Frame Clip") { ops ->
+        val newOps = ops.toMutableList()
+        if (index == 0) {
+            newOps.removeAll { it is EditOperation.FrameMain }
+            if (stored != null) newOps.add(EditOperation.FrameMain(stored))
+        } else {
+            val mergeIdx = newOps.indexOfFirst { it is EditOperation.Merge }
+            if (mergeIdx != -1) {
+                val mergeOp = newOps[mergeIdx] as EditOperation.Merge
+                val items = mergeOp.items.toMutableList()
+                val targetIndex = index - 1
+                if (targetIndex >= 0 && targetIndex < items.size) {
+                    items[targetIndex] = items[targetIndex].copy(frame = stored)
+                    newOps[mergeIdx] = mergeOp.copy(items = items)
+                }
+            }
+        }
+        newOps
+    })
+}
+
 fun VideoEditingViewModel.addMuteAudioOperation() {
     executeCommand(ReplaceUniqueOperationCommand(EditOperation.MuteAudio(), "Mute Original Audio"))
 }
@@ -270,10 +294,11 @@ fun VideoEditingViewModel.splitVideoSegment(index: Int, localSplitTimeMs: Long, 
             val isReversed = reverseOp?.isReversed ?: false
             val isMirrored = mirrorOp?.isMirrored ?: false
             val maskConfig = maskOp?.maskConfig ?: EditOperation.MaskConfig()
+            val frame = newOps.filterIsInstance<EditOperation.FrameMain>().lastOrNull()?.frame
             val proxyUri = reverseOp?.proxyUri ?: speedOp?.proxyUri
-            
+
             val mergeIdx = newOps.indexOfFirst { it is EditOperation.Merge }
-            val newItem = EditOperation.MergeItem(sourceUri, sourceDuration, trimStartMs = localSplitTimeMs, trimEndMs = oldEndMs, speed = speed, isReversed = isReversed, isMirrored = isMirrored, maskConfig = maskConfig, proxyUri = proxyUri)
+            val newItem = EditOperation.MergeItem(sourceUri, sourceDuration, trimStartMs = localSplitTimeMs, trimEndMs = oldEndMs, speed = speed, isReversed = isReversed, isMirrored = isMirrored, maskConfig = maskConfig, proxyUri = proxyUri, frame = frame)
             if (mergeIdx != -1) {
                 val mergeOp = newOps[mergeIdx] as EditOperation.Merge
                 val items = mergeOp.items.toMutableList()
@@ -314,7 +339,7 @@ fun VideoEditingViewModel.deleteSequenceSegment(index: Int) {
                     val promotedItem = items.removeAt(0)
                     newSourceUri = promotedItem.uri
                     
-                    ops.removeAll { it is EditOperation.Trim || it is EditOperation.SpeedMain || it is EditOperation.ReverseMain || it is EditOperation.MirrorMain || it is EditOperation.MaskMain }
+                    ops.removeAll { it is EditOperation.Trim || it is EditOperation.SpeedMain || it is EditOperation.ReverseMain || it is EditOperation.MirrorMain || it is EditOperation.MaskMain || it is EditOperation.FrameMain }
                     
                     ops.add(0, EditOperation.Trim(promotedItem.trimStartMs, promotedItem.trimEndMs))
                     if (promotedItem.speed != 1.0f) {
@@ -329,6 +354,7 @@ fun VideoEditingViewModel.deleteSequenceSegment(index: Int) {
                     if (promotedItem.maskConfig.shape != EditOperation.MaskShape.NONE) {
                         ops.add(EditOperation.MaskMain(promotedItem.maskConfig))
                     }
+                    promotedItem.frame?.let { ops.add(EditOperation.FrameMain(it)) }
                     
                     if (items.isEmpty()) {
                         ops.remove(mergeOp)

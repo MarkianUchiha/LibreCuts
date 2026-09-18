@@ -5368,7 +5368,8 @@ class VideoEditingActivity : AppCompatActivity() {
             proxyUri = proxyUri,
             scrubProxyUri = viewModel.project.value?.scrubProxyUri,
             maskConfig = maskConfig,
-            isImage = isMainImg
+            isImage = isMainImg,
+            frame = viewModel.project.value?.operations?.filterIsInstance<com.tharunbirla.librecuts.models.EditOperation.FrameMain>()?.lastOrNull()?.frame
         ))
         
         val mergeOp = viewModel.project.value?.operations?.filterIsInstance<com.tharunbirla.librecuts.models.EditOperation.Merge>()?.firstOrNull()

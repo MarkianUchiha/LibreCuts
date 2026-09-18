@@ -232,10 +232,34 @@ sealed class EditOperation : Serializable {
         val isReversed: Boolean = false,
         val isMirrored: Boolean = false,
         val maskConfig: MaskConfig = MaskConfig(),
-        val isImage: Boolean = false
+        val isImage: Boolean = false,
+        // Nullable a propósito: Gson no aplica defaults de Kotlin en MergeItem (no tiene constructor
+        // vacío porque exige uri), así que en proyectos viejos un campo suelto quedaría en 0.
+        // null = sin encuadre.
+        val frame: ClipFrame? = null
     ) : Serializable {
         val trimmedDurationMs: Long
             get() = ((trimEndMs - trimStartMs) / speed).toLong()
+    }
+
+    /**
+     * Encuadre de un clip dentro del lienzo: escala respecto al tamaño con el que el clip llena el
+     * lienzo y desplazamiento del centro en fracción del lienzo (offsetX = 0.5 lo mueve medio ancho).
+     * Todos los parámetros tienen default, así que Gson sí respeta los defaults aquí.
+     */
+    data class ClipFrame(
+        val scale: Float = 1f,
+        val offsetX: Float = 0f,
+        val offsetY: Float = 0f
+    ) : Serializable {
+        val isIdentity: Boolean
+            get() = scale == 1f && offsetX == 0f && offsetY == 0f
+
+        companion object {
+            const val MIN_SCALE = 0.1f
+            const val MAX_SCALE = 5f
+            const val MAX_OFFSET = 1f
+        }
     }
 
     /**
@@ -257,6 +281,12 @@ sealed class EditOperation : Serializable {
     /** Mask configuration for the main track video base (index 0) */
     data class MaskMain(
         val maskConfig: MaskConfig,
+        val id: String = System.nanoTime().toString()
+    ) : EditOperation()
+
+    /** Encuadre del clip 0; los demás clips lo guardan en MergeItem.frame (mismo patrón que MaskMain). */
+    data class FrameMain(
+        val frame: ClipFrame,
         val id: String = System.nanoTime().toString()
     ) : EditOperation()
     
@@ -474,6 +504,7 @@ val EditOperation.id: String
         is EditOperation.ReverseMain -> id
         is EditOperation.MirrorMain -> id
         is EditOperation.MaskMain -> id
+        is EditOperation.FrameMain -> id
         is EditOperation.Crop -> id
         is EditOperation.AddText -> id
         is EditOperation.Merge -> id
