@@ -10,6 +10,13 @@ Fork **propio** (no se planea mandar PRs a upstream). En orden:
 2. Corregir los muchos bugs de la app (la mayoría sencillos pero molestos) y traducir al español.
 3. Agregar funciones tipo CapCut; un par de diferenciadores, por definir.
 
+## Seguimiento (Linear)
+
+- Proyecto `librecuts`, equipo `MarkiDev`. Un issue por bug o función.
+- Título: `[APP-ANDROID][LibreCuts] ...` (el Linear es compartido con otros proyectos del usuario; el tag deja claro de cuál es).
+- Labels: `app-android` + `Bug` / `Feature` / `Improvement`.
+- Dispositivo de prueba: tablet Honor ELN-W09, Android 13 (API 33), MagicOS 7.1, arm64, ~3.7 GB RAM. Instalar con `./gradlew installDebug`.
+
 Todo lo de este archivo se verificó contra el código el 2026-09-17. Lo que no se pudo confirmar está en **No confirmado**.
 
 ## Comandos (los mismos que corre CI en `.github/workflows/ci.yml`)
