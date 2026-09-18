@@ -259,6 +259,12 @@ sealed class EditOperation : Serializable {
             const val MIN_SCALE = 0.1f
             const val MAX_SCALE = 5f
             const val MAX_OFFSET = 1f
+
+            /**
+             * Con zoom, llevar el borde del clip al borde del lienzo pide |offset| = (s-1)/2, más que
+             * MAX_OFFSET. s/2 lo permite y mantiene |offset| < (s+1)/2, así el clip nunca sale del todo.
+             */
+            fun maxOffsetFor(scale: Float): Float = maxOf(MAX_OFFSET, scale / 2f)
         }
     }
 

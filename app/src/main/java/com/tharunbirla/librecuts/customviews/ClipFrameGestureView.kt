@@ -150,10 +150,12 @@ class ClipFrameGestureView @JvmOverloads constructor(
     }
 
     private fun update(frame: ClipFrame) {
+        val scale = frame.scale.coerceIn(ClipFrame.MIN_SCALE, ClipFrame.MAX_SCALE)
+        val maxOffset = ClipFrame.maxOffsetFor(scale)
         working = ClipFrame(
-            scale = frame.scale.coerceIn(ClipFrame.MIN_SCALE, ClipFrame.MAX_SCALE),
-            offsetX = frame.offsetX.coerceIn(-ClipFrame.MAX_OFFSET, ClipFrame.MAX_OFFSET),
-            offsetY = frame.offsetY.coerceIn(-ClipFrame.MAX_OFFSET, ClipFrame.MAX_OFFSET)
+            scale = scale,
+            offsetX = frame.offsetX.coerceIn(-maxOffset, maxOffset),
+            offsetY = frame.offsetY.coerceIn(-maxOffset, maxOffset)
         )
         if (!changed) onTransformStart?.invoke()
         changed = true

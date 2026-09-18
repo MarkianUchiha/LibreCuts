@@ -11,6 +11,10 @@ import kotlin.math.roundToInt
  *
  * Sin encuadre (null o identidad) devuelven exactamente lo que el export generaba antes, para que
  * los proyectos sin encuadrar no cambien ni un byte en su comando.
+ *
+ * Con zoom (s > 1) no se escala el cuadro completo: a ×5 sobre 1080p serían cuadros de 9600x5400.
+ * Se recorta primero la región de la fuente que queda sobre el lienzo y se escala solo esa, así
+ * el resultado nunca pasa del tamaño del lienzo.
  */
 object ClipFrameFilters {
 
@@ -22,6 +26,13 @@ object ClipFrameFilters {
         if (frame == null || frame.isIdentity) {
             return "scale=$canvasW:$canvasH:force_original_aspect_ratio=decrease"
         }
+        if (frame.scale > 1f) {
+            // Se lleva el clip ajustado a un lienzo transparente del mismo tamaño: así la región
+            // visible se calcula igual que en el camino de un clip, sin conocer el aspecto del clip.
+            return "scale=$canvasW:$canvasH:force_original_aspect_ratio=decrease,format=rgba," +
+                "pad=$canvasW:$canvasH:(ow-iw)/2:(oh-ih)/2:color=black@0," +
+                zoomCropAndScale(frame)
+        }
         // Caja par: yuv420p no admite dimensiones impares.
         val boxW = even(canvasW * frame.scale)
         val boxH = even(canvasH * frame.scale)
@@ -30,6 +41,10 @@ object ClipFrameFilters {
 
     /** Posición para `overlay`: centrado y desplazado offset * tamaño del lienzo. */
     fun overlayPosition(frame: ClipFrame?): String {
+        if (frame != null && frame.scale > 1f) {
+            // Tras recortar, la pieza empieza donde el clip entra al lienzo (0 si ya empezaba fuera).
+            return "${edge(frame.scale, frame.offsetX, "W")}:${edge(frame.scale, frame.offsetY, "H")}"
+        }
         val dx = frame?.offsetX ?: 0f
         val dy = frame?.offsetY ?: 0f
         return "(W-w)/2${term(dx, "W")}:(H-h)/2${term(dy, "H")}"
@@ -42,13 +57,49 @@ object ClipFrameFilters {
      */
     fun framedStage(inLabel: String, outLabel: String, frame: ClipFrame?): List<String>? {
         if (frame == null || frame.isIdentity) return null
-        val s = fmt(frame.scale)
+        val clip = if (frame.scale > 1f) {
+            zoomCropAndScale(frame)
+        } else {
+            val s = fmt(frame.scale)
+            "scale=trunc(iw*$s/2)*2:trunc(ih*$s/2)*2"
+        }
         return listOf(
             "${inLabel}split[frame_bg][frame_fg]",
             "[frame_bg]drawbox=c=black:t=fill[frame_canvas]",
-            "[frame_fg]scale=trunc(iw*$s/2)*2:trunc(ih*$s/2)*2[frame_clip]",
+            "[frame_fg]$clip[frame_clip]",
             "[frame_canvas][frame_clip]overlay=${overlayPosition(frame)}$outLabel"
         )
+    }
+
+    /**
+     * Para una entrada del tamaño del lienzo: recorta la región que sigue visible con zoom s y
+     * desplazamiento offset, y la escala por s. Las fracciones son constantes calculadas aquí.
+     */
+    private fun zoomCropAndScale(frame: ClipFrame): String {
+        val (x0, x1) = visibleRange(frame.scale, frame.offsetX)
+        val (y0, y1) = visibleRange(frame.scale, frame.offsetY)
+        val s = fmt(frame.scale)
+        return "crop=w=iw*${fmt(x1 - x0)}:h=ih*${fmt(y1 - y0)}:x=iw*${fmt(x0)}:y=ih*${fmt(y0)}," +
+            "scale=trunc(iw*$s/2)*2:trunc(ih*$s/2)*2"
+    }
+
+    /**
+     * Rango de la fuente (en fracción de su tamaño) que cae sobre el lienzo. El borde del clip
+     * escalado queda en lead = (1-s)/2 + offset del lienzo; el lienzo [0, 1] corresponde a la
+     * fuente [-lead/s, (1-lead)/s], acotado a [0, 1].
+     */
+    private fun visibleRange(scale: Float, offset: Float): Pair<Float, Float> {
+        val lead = (1f - scale) / 2f + offset
+        val start = (-lead / scale).coerceIn(0f, 1f)
+        val end = ((1f - lead) / scale).coerceIn(0f, 1f)
+        // maxOffsetFor garantiza que algo del clip quede visible; el mínimo evita un crop de 0 px.
+        return start to maxOf(end, start + 0.01f).coerceAtMost(1f)
+    }
+
+    /** Dónde empieza la pieza recortada: el borde del clip si cae dentro del lienzo, si no 0. */
+    private fun edge(scale: Float, offset: Float, dimension: String): String {
+        val lead = (1f - scale) / 2f + offset
+        return if (lead <= 0f) "0" else "$dimension*${fmt(lead)}"
     }
 
     private fun term(offset: Float, dimension: String): String = when {
