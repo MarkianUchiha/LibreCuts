@@ -93,6 +93,55 @@ class ImageOverlaySelectionTest {
             pinch(overlay, fromCenterX = 500f, toCenterX = 650f, fromSpan = 400f, toSpan = 600f)
             assertEquals(0.65f, overlay.getRelativeX(), 0.03f)
             assertEquals(0.3f, overlay.getRelativeWidth(), 0.03f)
+
+            // Lo que se guarda sale de commitImage, que recalcula desde el ImageView ya acomodado.
+            var committedX: Float? = null
+            overlay.onImageCommitted = { _, rx, _, _, _, _, _, _, _ -> committedX = rx }
+            layout(overlay)
+            overlay.commitImage()
+            assertEquals(0.65f, committedX!!, 0.03f)
+        }
+    }
+
+    @Test
+    fun pinchAfterDraggingKeepsTheDraggedPosition() {
+        instrumentation.runOnMainSync {
+            val overlay = createSelectedOverlay()
+            val t = SystemClock.uptimeMillis()
+            // Un dedo arrastra la imagen 200 px a la derecha y luego baja el segundo para pellizcar.
+            send(overlay, MotionEvent.ACTION_DOWN, 500f, 300f, t, t)
+            for (i in 1..20) send(overlay, MotionEvent.ACTION_MOVE, 500f + 10f * i, 300f, t, t + i * 16L)
+            twoFingerPinch(overlay, downTime = t, startTime = t + 400, centerX = 700f, fromSpan = 200f, toSpan = 300f)
+
+            assertEquals("el arrastre previo no debe perderse", 0.7f, overlay.getRelativeX(), 0.03f)
+        }
+    }
+
+    @Test
+    fun colorPickingTapOutsideDoesNotReportTapOutside() {
+        instrumentation.runOnMainSync {
+            val overlay = createSelectedOverlay()
+            var tappedAt: Pair<Float, Float>? = null
+            overlay.onTapOutside = { x, y -> tappedAt = x to y }
+            // Un toque previo deja al GestureDetector en estado "toque"; el UP del cuentagotas
+            // no debe llegarle como si fuera otro toque fuera.
+            tap(overlay, 100f, 100f)
+            tappedAt = null
+
+            overlay.isColorPickingMode = true
+            tap(overlay, 100f, 100f)
+
+            assertNull("el cuentagotas no debe guardar ni cerrar la edición", tappedAt)
+        }
+    }
+
+    @Test
+    fun deactivateClearsColorPickingMode() {
+        instrumentation.runOnMainSync {
+            val overlay = createSelectedOverlay()
+            overlay.isColorPickingMode = true
+            overlay.deactivate()
+            assertTrue("el cuentagotas no debe sobrevivir a la selección", !overlay.isColorPickingMode)
         }
     }
 
@@ -165,6 +214,36 @@ class ImageOverlaySelectionTest {
             send(view, MotionEvent.ACTION_MOVE, x, y, t, t + i * 16L)
         }
         send(view, MotionEvent.ACTION_UP, to.first, to.second, t, t + (steps + 1) * 16L)
+    }
+
+    /**
+     * Continúa un gesto cuyo primer dedo ya está abajo en (centerX, HEIGHT/2): baja el segundo a
+     * `fromSpan` y separa ambos simétricamente hasta `toSpan`.
+     */
+    private fun twoFingerPinch(view: View, downTime: Long, startTime: Long, centerX: Float, fromSpan: Float, toSpan: Float, steps: Int = 30) {
+        val cy = HEIGHT / 2f
+        var time = startTime
+        fun sendTwo(action: Int, span: Float) {
+            val props = Array(2) { MotionEvent.PointerProperties().apply { id = it; toolType = MotionEvent.TOOL_TYPE_FINGER } }
+            val coords = Array(2) {
+                MotionEvent.PointerCoords().apply {
+                    // El primer dedo arranca justo donde terminó el arrastre.
+                    x = if (it == 0) centerX - (span - fromSpan) / 2 else centerX + fromSpan + (span - fromSpan) / 2
+                    y = cy
+                    pressure = 1f
+                    size = 1f
+                }
+            }
+            val e = MotionEvent.obtain(downTime, time, action, 2, props, coords, 0, 0, 1f, 1f, 0, 0, 0, 0)
+            view.dispatchTouchEvent(e)
+            e.recycle()
+            time += 16
+        }
+        val pointer1 = 1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT
+        sendTwo(MotionEvent.ACTION_POINTER_DOWN or pointer1, fromSpan)
+        for (i in 1..steps) sendTwo(MotionEvent.ACTION_MOVE, fromSpan + (toSpan - fromSpan) * i / steps)
+        sendTwo(MotionEvent.ACTION_POINTER_UP or pointer1, toSpan)
+        send(view, MotionEvent.ACTION_UP, centerX - (toSpan - fromSpan) / 2, cy, downTime, time)
     }
 
     /** Dos dedos simétricos respecto a un centro que puede desplazarse durante el gesto. */

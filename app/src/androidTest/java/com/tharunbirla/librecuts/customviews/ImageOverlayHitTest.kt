@@ -64,12 +64,15 @@ class ImageOverlayHitTest {
     @Test
     fun rotatedImageIsHitInsideItsRotatedShapeOnly() {
         instrumentation.runOnMainSync {
-            // Cuadrado de 300x300 px centrado en (500, 300), girado 45°: la esquina del rect
-            // sin girar (650, 150) queda a 212 px del centro en el eje local, fuera del rombo
-            // aun con el margen táctil; la punta derecha del rombo (700, 300) queda dentro.
-            val view = createView(image("girada", 0.5f, 0.5f, w = 0.3f, h = 0.5f, rotation = 45f))
-            assertNull(view.findImageAt(650f, 150f))
-            assertEquals("girada", view.findImageAt(700f, 300f))
+            // Barra de 400x100 px centrada en (500, 300), girada 30° en sentido horario (como
+            // canvas.rotate con y hacia abajo). No es simétrica: un signo invertido falla aquí.
+            // (647, 385) está a 170 px del centro sobre el eje largo girado: dentro.
+            // (647, 215), el reflejo respecto al eje horizontal, quedaría dentro con el signo al revés.
+            val view = createView(image("girada", 0.5f, 0.5f, w = 0.4f, h = 1f / 6f, rotation = 30f))
+            assertEquals("girada", view.findImageAt(647f, 385f))
+            assertNull(view.findImageAt(647f, 215f))
+            // La esquina del rect sin girar queda fuera.
+            assertNull(view.findImageAt(690f, 250f))
         }
     }
 

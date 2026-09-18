@@ -63,6 +63,7 @@ class DraggableImageOverlayView @JvmOverloads constructor(
     private var showVerticalGuideline = false
     private var showHorizontalGuideline = false
     private var isDragging = false
+    private var isTapGesture = false
     private var dragOffsetX = 0f
     private var dragOffsetY = 0f
 
@@ -446,6 +447,9 @@ class DraggableImageOverlayView @JvmOverloads constructor(
     fun deactivate() {
         isEditingActive = false
         isMaskEditingMode = false
+        // El sheet de chroma se oculta sin dismiss al cambiar de selección, así que su listener
+        // no apaga el cuentagotas; sin esto, el primer toque en la siguiente imagen tomaría un color.
+        isColorPickingMode = false
         visibility = GONE
         imageUri = null
     }
@@ -488,10 +492,23 @@ class DraggableImageOverlayView @JvmOverloads constructor(
 
         scaleDetector.onTouchEvent(event)
         // En máscara y cuentagotas el toque tiene otro significado: no cuenta como "tocar fuera".
-        if (!isMaskEditingMode && !isColorPickingMode) tapDetector.onTouchEvent(event)
+        // Se decide en el DOWN y vale todo el gesto: el cuentagotas se apaga dentro de su propio
+        // DOWN, y si el detector recibiera solo el UP lo tomaría como otro toque.
+        if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+            isTapGesture = !isMaskEditingMode && !isColorPickingMode
+        }
+        if (isTapGesture) tapDetector.onTouchEvent(event)
 
         if (scaleDetector.isInProgress || event.pointerCount > 1) {
-            isDragging = false
+            if (isDragging) {
+                // El arrastre solo movía imageView; sin guardarlo, el pellizco recoloca la imagen
+                // desde relativeX/Y viejos y la regresa a donde estaba.
+                isDragging = false
+                showVerticalGuideline = false
+                showHorizontalGuideline = false
+                if (!isMaskEditingMode) updateRelativePosition()
+                invalidate()
+            }
             return true
         }
 
