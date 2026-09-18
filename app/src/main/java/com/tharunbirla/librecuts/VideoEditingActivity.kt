@@ -125,6 +125,9 @@ class VideoEditingActivity : AppCompatActivity() {
     private var isUserScrollingTimeline = false
     private var isTrackDragging = false
     private var isProgrammaticScroll = false
+    // Posición de reproducción antes de un cambio de ancho; se restaura en onTimelineWidthChanged.
+    private var positionBeforeResizeMs: Long? = null
+    private var lastScreenWidthDp = 0
     private var pixelsPerMs: Float = 0.3f
     private var lastSnappedTargetMs: Long = -1L
     private enum class ZoomMode { FIT, MEDIUM, PRECISION }
@@ -792,10 +795,14 @@ class VideoEditingActivity : AppCompatActivity() {
             openFilePickerMerge()
         }
 
-        timelineContainer.post {
-            val halfWidth = timelineContainer.width / 2
-            timelineHorizontalScroll.setPadding(halfWidth, 0, halfWidth, 0)
-            updateTimelineAddButtonPosition()
+        // configChanges evita que la Activity se recree al girar o al entrar en multiventana,
+        // así que todo lo que depende del ancho se recalcula aquí en vez de una sola vez al abrir.
+        // Se difiere con post porque cambiar padding y pistas dentro de un pase de layout lo invalida.
+        lastScreenWidthDp = resources.configuration.screenWidthDp
+        timelineContainer.addOnLayoutChangeListener { _, left, _, right, _, oldLeft, _, oldRight, _ ->
+            if (right - left != oldRight - oldLeft) {
+                timelineContainer.post { onTimelineWidthChanged() }
+            }
         }
 
         timelineVerticalScroll.setOnScrollChangeListener { _, _, _, _, _ ->
@@ -6585,6 +6592,24 @@ class VideoEditingActivity : AppCompatActivity() {
         updateTimelineAddButtonPosition()
     }
 
+    private fun onTimelineWidthChanged() {
+        // Medio ancho de padding a cada lado deja el 0 del timeline bajo el cabezal central;
+        // renderTracks usa el ancho actual, así que ambos deben calcularse con el mismo valor.
+        val halfWidth = timelineContainer.width / 2
+        timelineHorizontalScroll.setPadding(halfWidth, 0, halfWidth, 0)
+        viewModel.project.value?.let { renderTracks(it) }
+        updateTimelineAddButtonPosition()
+
+        val targetMs = positionBeforeResizeMs ?: getGlobalPosition()
+        positionBeforeResizeMs = null
+        // force cancela el seek diferido que pudo dejar el reajuste de scroll durante el relayout.
+        if (targetMs != getGlobalPosition()) seekToGlobalPosition(targetMs, force = true)
+
+        isProgrammaticScroll = true
+        timelineHorizontalScroll.scrollTo((targetMs * pixelsPerMs).toInt(), 0)
+        isProgrammaticScroll = false
+    }
+
     private fun updateTimelineAddButtonPosition() {
         if (!::btnTimelineAdd.isInitialized) return
         val emptyStateVisible = findViewById<View>(R.id.emptyProjectState)?.visibility == View.VISIBLE
@@ -7636,6 +7661,17 @@ class VideoEditingActivity : AppCompatActivity() {
         activeRenderJobs.clear()
         frameExtractionJob?.cancel()
         previewJob?.cancel()
+    }
+
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        // Se captura antes del relayout: al cambiar el ancho, HorizontalScrollView reajusta su
+        // scrollX y el listener de scroll lo toma como un seek del usuario, moviendo la reproducción.
+        // Solo cuando cambia el ancho; si no, onTimelineWidthChanged no correría y quedaría un valor viejo.
+        if (newConfig.screenWidthDp != lastScreenWidthDp && ::player.isInitialized) {
+            positionBeforeResizeMs = getGlobalPosition()
+        }
+        lastScreenWidthDp = newConfig.screenWidthDp
+        super.onConfigurationChanged(newConfig)
     }
 
     override fun onDestroy() {
