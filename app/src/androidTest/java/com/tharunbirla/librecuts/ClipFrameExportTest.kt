@@ -7,8 +7,13 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.antonkarpenko.ffmpegkit.FFmpegKit
 import com.antonkarpenko.ffmpegkit.ReturnCode
+import android.net.Uri
+import com.tharunbirla.librecuts.models.EditOperation
 import com.tharunbirla.librecuts.models.EditOperation.ClipFrame
 import com.tharunbirla.librecuts.utils.ClipFrameFilters
+import com.tharunbirla.librecuts.viewmodels.VideoEditingViewModel
+import com.tharunbirla.librecuts.viewmodels.addMergeOperation
+import com.tharunbirla.librecuts.viewmodels.updateClipFrame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -45,6 +50,76 @@ class ClipFrameExportTest {
         assertRed(frame, 80, 120)
         assertBlack(frame, 240, 120)
     }
+
+    @Test
+    fun consolidatedCommandAppliesTheMainClipFrame() {
+        // End-to-end con el comando real del export: sin textos, imágenes ni recorte, que es
+        // justo el caso donde el comando se saltaba el encuadre.
+        val source = syntheticClip("main")
+        val frame = exportWith(source) { vm ->
+            vm.updateClipFrame(0, ClipFrame(scale = 0.5f, offsetX = 0.25f))
+        }
+        // Clip a media escala centrado en x = 0.75 del ancho.
+        assertRedAt(frame, 0.75f, 0.5f)
+        assertBlackAt(frame, 0.3f, 0.5f)
+        assertBlackAt(frame, 0.1f, 0.1f)
+    }
+
+    @Test
+    fun consolidatedMergeCommandAppliesTheMainClipFrame() {
+        val source = syntheticClip("main")
+        val second = syntheticClip("second")
+        val frame = exportWith(source) { vm ->
+            vm.addMergeOperation(listOf(EditOperation.MergeItem(Uri.fromFile(second), 1000L)))
+            vm.updateClipFrame(0, ClipFrame(scale = 0.5f, offsetX = -0.25f))
+        }
+        assertRedAt(frame, 0.25f, 0.5f)
+        assertBlackAt(frame, 0.7f, 0.5f)
+    }
+
+    private fun exportWith(source: File, edit: (VideoEditingViewModel) -> Unit): Bitmap {
+        val out = File(context.cacheDir, "clip_frame_export_${System.nanoTime()}.mp4")
+        var cmd: String? = null
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            val vm = VideoEditingViewModel()
+            vm.initializeProject(Uri.fromFile(source), source.name)
+            edit(vm)
+            cmd = vm.buildConsolidatedFFmpegCommand(source.absolutePath, out.absolutePath, null, context)
+        }
+        assertTrue("el comando debe incluir el encuadre: $cmd", cmd!!.contains("overlay="))
+        // Mismo fallback que FFmpegRenderEngine: si el encoder de hardware falla, software.
+        var session = FFmpegKit.execute(cmd)
+        if (!ReturnCode.isSuccess(session.returnCode)) {
+            session = FFmpegKit.execute(cmd!!.replace("-c:v h264_mediacodec", "-c:v libx264"))
+        }
+        assertTrue("FFmpeg falló: ${session.allLogsAsString.takeLast(800)}", ReturnCode.isSuccess(session.returnCode))
+        return firstFrame(out)
+    }
+
+    /** Clip rojo de 1 s con audio, generado con el FFmpeg de la app. */
+    private fun syntheticClip(name: String): File {
+        val file = File(context.cacheDir, "clip_frame_src_${name}_${System.nanoTime()}.mp4")
+        val session = FFmpegKit.execute(
+            "-y -f lavfi -i color=c=red:s=${W}x$H:d=1:r=10 -f lavfi -i anullsrc=r=44100:cl=stereo " +
+                "-t 1 -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest \"${file.absolutePath}\""
+        )
+        assertTrue("no se pudo crear el clip de prueba", ReturnCode.isSuccess(session.returnCode))
+        return file
+    }
+
+    private fun firstFrame(file: File): Bitmap {
+        val retriever = MediaMetadataRetriever()
+        try {
+            retriever.setDataSource(file.absolutePath)
+            return retriever.getFrameAtTime(0)!!
+        } finally {
+            retriever.release()
+            file.delete()
+        }
+    }
+
+    private fun assertRedAt(bmp: Bitmap, fx: Float, fy: Float) = assertRed(bmp, (bmp.width * fx).toInt(), (bmp.height * fy).toInt())
+    private fun assertBlackAt(bmp: Bitmap, fx: Float, fy: Float) = assertBlack(bmp, (bmp.width * fx).toInt(), (bmp.height * fy).toInt())
 
     private fun render(filterGraph: String): Bitmap {
         val out = File(context.cacheDir, "clip_frame_${System.nanoTime()}.mp4")

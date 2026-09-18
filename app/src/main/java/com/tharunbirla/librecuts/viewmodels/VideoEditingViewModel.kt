@@ -1390,8 +1390,9 @@ class VideoEditingViewModel : ViewModel() {
         // Encuadre del clip (M-198): va antes de textos, imágenes y recorte, así que los overlays
         // no se mueven con el video y el recorte se aplica sobre el lienzo ya encuadrado.
         val mainFrame = operations.filterIsInstance<EditOperation.FrameMain>().lastOrNull()?.frame
-        ClipFrameFilters.framedStage(currentInputVideoLabel, "[framed]", mainFrame)?.let { stages ->
-            filterComplexParts.addAll(stages)
+        val frameStages = ClipFrameFilters.framedStage(currentInputVideoLabel, "[framed]", mainFrame)
+        if (frameStages != null) {
+            filterComplexParts.addAll(frameStages)
             currentInputVideoLabel = "[framed]"
         }
 
@@ -1516,7 +1517,8 @@ class VideoEditingViewModel : ViewModel() {
         }
 
         // ── Assemble the command ──
-        val hasVideoFilters = videoStages.isNotEmpty() || prepFilters.isNotEmpty()
+        // Sin contar el encuadre, un proyecto encuadrado sin textos ni recorte mapeaba 0:v y lo perdía.
+        val hasVideoFilters = videoStages.isNotEmpty() || prepFilters.isNotEmpty() || frameStages != null
         val hasAudioFilters = finalAudioLabel != null
 
         if (hasVideoFilters || hasAudioFilters) {
