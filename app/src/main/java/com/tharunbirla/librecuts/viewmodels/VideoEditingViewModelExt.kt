@@ -325,6 +325,65 @@ fun VideoEditingViewModel.splitVideoSegment(index: Int, localSplitTimeMs: Long, 
     })
 }
 
+/**
+ * Convierte [item] en el clip principal: borra las operaciones `*Main` que había y las regenera a
+ * partir del item.
+ *
+ * El clip principal no se guarda como `MergeItem` sino repartido entre `VideoProject.sourceUri` y
+ * estas operaciones, así que promover a otro clip obliga a desarmarlo campo por campo. Quien llame
+ * a esto debe además escribir `sourceUri = item.uri`; aquí solo se tocan las operaciones.
+ */
+private fun promoteToMain(ops: MutableList<EditOperation>, item: EditOperation.MergeItem) {
+    ops.removeAll {
+        it is EditOperation.Trim || it is EditOperation.SpeedMain || it is EditOperation.ReverseMain ||
+            it is EditOperation.MirrorMain || it is EditOperation.MaskMain || it is EditOperation.FrameMain
+    }
+
+    ops.add(0, EditOperation.Trim(item.trimStartMs, item.trimEndMs))
+    if (item.speed != 1.0f) {
+        ops.add(EditOperation.SpeedMain(item.speed, item.proxyUri))
+    }
+    if (item.isReversed) {
+        ops.add(EditOperation.ReverseMain(true, item.proxyUri))
+    }
+    if (item.isMirrored) {
+        ops.add(EditOperation.MirrorMain(true))
+    }
+    if (item.maskConfig.shape != EditOperation.MaskShape.NONE) {
+        ops.add(EditOperation.MaskMain(item.maskConfig))
+    }
+    item.frame?.let { ops.add(EditOperation.FrameMain(it)) }
+}
+
+/**
+ * Reordena la secuencia completa, con el clip principal incluido en [orderedItems].
+ *
+ * Distinta de [updateSequenceOrder], que recibe solo los clips agregados: aquí el primer item pasa
+ * a ser el principal y el resto queda en `Merge.items`. Sin esa separación el principal terminaría
+ * a la vez en `sourceUri` y en `Merge.items`, o sea duplicado en el timeline y en el export (M-210).
+ */
+fun VideoEditingViewModel.reorderSequence(orderedItems: List<EditOperation.MergeItem>) {
+    if (orderedItems.isEmpty()) return
+
+    executeCommand(com.tharunbirla.librecuts.commands.MutateProjectCommand("Reorder Sequence") { project ->
+        val ops = project.operations.toMutableList()
+        val newMain = orderedItems.first()
+        promoteToMain(ops, newMain)
+
+        val rest = orderedItems.drop(1)
+        val mergeIdx = ops.indexOfFirst { it is EditOperation.Merge }
+        if (rest.isEmpty()) {
+            if (mergeIdx != -1) ops.removeAt(mergeIdx)
+        } else if (mergeIdx != -1) {
+            ops[mergeIdx] = (ops[mergeIdx] as EditOperation.Merge).copy(items = rest)
+        } else {
+            ops.add(EditOperation.Merge(rest))
+        }
+
+        project.copy(sourceUri = newMain.uri, operations = ops)
+    })
+}
+
 fun VideoEditingViewModel.deleteSequenceSegment(index: Int) {
     executeCommand(com.tharunbirla.librecuts.commands.MutateProjectCommand("Delete Segment") { project ->
         val ops = project.operations.toMutableList()
@@ -338,24 +397,9 @@ fun VideoEditingViewModel.deleteSequenceSegment(index: Int) {
                 if (items.isNotEmpty()) {
                     val promotedItem = items.removeAt(0)
                     newSourceUri = promotedItem.uri
-                    
-                    ops.removeAll { it is EditOperation.Trim || it is EditOperation.SpeedMain || it is EditOperation.ReverseMain || it is EditOperation.MirrorMain || it is EditOperation.MaskMain || it is EditOperation.FrameMain }
-                    
-                    ops.add(0, EditOperation.Trim(promotedItem.trimStartMs, promotedItem.trimEndMs))
-                    if (promotedItem.speed != 1.0f) {
-                        ops.add(EditOperation.SpeedMain(promotedItem.speed, promotedItem.proxyUri))
-                    }
-                    if (promotedItem.isReversed) {
-                        ops.add(EditOperation.ReverseMain(true, promotedItem.proxyUri))
-                    }
-                    if (promotedItem.isMirrored) {
-                        ops.add(EditOperation.MirrorMain(true))
-                    }
-                    if (promotedItem.maskConfig.shape != EditOperation.MaskShape.NONE) {
-                        ops.add(EditOperation.MaskMain(promotedItem.maskConfig))
-                    }
-                    promotedItem.frame?.let { ops.add(EditOperation.FrameMain(it)) }
-                    
+
+                    promoteToMain(ops, promotedItem)
+
                     if (items.isEmpty()) {
                         ops.remove(mergeOp)
                     } else {

@@ -6073,7 +6073,18 @@ class VideoEditingActivity : AppCompatActivity() {
 
                 val originalOrder = (0 until segmentViews.size).toList()
                 if (currentDragOrder != originalOrder) {
-                    viewModel.updateSequenceOrder(finalItems)
+                    // El primer clip de la secuencia es el principal (sourceUri + tempInputFile), no un
+                    // MergeItem. Si el arrastre cambió cuál va primero hay que mover con él el estado
+                    // local del reproductor, igual que al borrar el segmento 0.
+                    finalItems.firstOrNull()?.let { newMain ->
+                        if (!::tempInputFile.isInitialized || newMain.uri != Uri.fromFile(tempInputFile)) {
+                            tempInputFile = File(newMain.uri.path ?: newMain.uri.toString())
+                            videoFileName = tempInputFile.name
+                            originalMainVideoDurationMs = newMain.durationMs
+                            videoUri = newMain.uri
+                        }
+                    }
+                    viewModel.reorderSequence(finalItems)
                 } else {
                     viewModel.project.value?.let { renderTracks(it) }
                 }
