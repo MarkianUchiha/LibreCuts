@@ -91,6 +91,27 @@ Implementa `specs/congelar-cuadro.md`. `freezeFrameAtCurrentPosition()` en la Ac
 Cubierto por `androidTest/.../FreezeFrameTest.kt` (CA1–CA6) y verificado en la tablet (CA1, CA6,
 CA7: preview y export de un clip encuadrado, 2026-09-21).
 
+## Máscara del clip (preview y edición)
+
+- **Dónde se dibuja:** `MaskedFrameLayout.dispatchDraw()` recorta `mainVideoMaskContainer` con
+  `relativeX/Y/Width/Height` como fracciones **del contenedor**. Ese contenedor vive en
+  `canvasContainer`, que se redimensiona a la caja del lienzo (`VideoEditingActivity.kt:2346-2350`,
+  `:2420-2424`), y es el que recibe el encuadre (`applyClipFramePreview`, l.2464: pivote en el
+  centro de `clipFrameReference`, `scale`, `translation = offset × tamaño de la referencia`). La
+  máscara viaja con el clip, igual que en el export, donde se aplica al clip antes de encuadrarlo.
+- **Dónde se edita:** `VideoMaskOverlayView` es hermano de `canvasContainer`, ocupa todo el preview
+  (`activity_video_editing.xml:244`) y no recibe el encuadre. Dibuja el contorno y convierte el
+  arrastre (`dx / width`, `dy / height`) con **su propio** tamaño.
+- **Resultado, verificado en la tablet (2026-09-21):** con un clip 16:9 sin encuadre y una
+  máscara rectangular al 50 %, el contorno cian mide el doble de alto que el área que la máscara
+  deja ver: cubre toda la altura del video. Por la misma razón el arrastre vertical mueve la
+  máscara a la mitad de la velocidad del dedo. Con encuadre se suma el desfase del issue M-211
+  (punto 1): el contorno no sigue la escala ni el desplazamiento del clip. `[SIN VERIFICAR]` la
+  magnitud exacta con encuadre.
+- **Espejo:** se aplica solo a la superficie de video (`scaleX = -1`, l.5678) dentro del
+  contenedor; la máscara no se espeja, y en el export `hflip` va antes de la máscara. Preview y
+  export coinciden. `[SIN VERIFICAR]` en la tablet.
+
 ## Sin verificar
 
 - Si el cuadro congelado coincide visualmente con el del playhead: `OPTION_CLOSEST_SYNC` sugiere
