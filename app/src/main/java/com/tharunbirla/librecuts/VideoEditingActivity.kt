@@ -2170,19 +2170,23 @@ class VideoEditingActivity : AppCompatActivity() {
                 if (project != null) {
                     Log.d(TAG, "Project updated with ${project.getOperationCount()} operations")
 
-                    if (project.sourceUri.scheme == "file") {
-                        val projectSourcePath = project.sourceUri.path
-                        if (projectSourcePath != null && (!::tempInputFile.isInitialized || tempInputFile.absolutePath != projectSourcePath)) {
-                            tempInputFile = File(projectSourcePath)
-                            videoFileName = tempInputFile.name
-                            try {
-                                val r = android.media.MediaMetadataRetriever()
-                                r.setDataSource(tempInputFile.absolutePath)
-                                originalMainVideoDurationMs = r.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLong() ?: 0L
-                                r.release()
-                            } catch (e: Exception) {
-                                Log.e(TAG, "Error getting original duration: ${e.message}")
-                            }
+                    // Un video importado queda como content:// en sourceUri pero se reproduce desde su
+                    // copia local; sin buscarla, deshacer un cambio de clip principal (congelar,
+                    // reordenar, borrar) dejaba al reproductor en el clip que ya no es principal.
+                    val projectSourcePath = when (project.sourceUri.scheme) {
+                        "file" -> project.sourceUri.path
+                        else -> uriToFilePathCache[project.sourceUri]
+                    }
+                    if (projectSourcePath != null && (!::tempInputFile.isInitialized || tempInputFile.absolutePath != projectSourcePath)) {
+                        tempInputFile = File(projectSourcePath)
+                        videoFileName = tempInputFile.name
+                        try {
+                            val r = android.media.MediaMetadataRetriever()
+                            r.setDataSource(tempInputFile.absolutePath)
+                            originalMainVideoDurationMs = r.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLong() ?: 0L
+                            r.release()
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error getting original duration: ${e.message}")
                         }
                     }
 

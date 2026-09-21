@@ -64,36 +64,32 @@ armado leyendo sus operaciones `*Main`, seguido de `Merge.items`.
 `promoteToMain` borra todas las operaciones `*Main` y las regenera desde el item. No copia
 `scrubProxyUri`, que vive a nivel de proyecto (abierto como M-212).
 
+### Clip principal en la Activity
+
+El reproductor no lee `project.sourceUri`: reproduce `tempInputFile`, una copia local del video.
+Las operaciones que cambian el principal llaman antes a `adoptMainClip(item)` en la Activity.
+Deshacer y rehacer se sincronizan en el observador de `project`: si `sourceUri` es `file://` usa
+su ruta; si es `content://` (video importado) busca su copia en `uriToFilePathCache`. Verificado
+en la tablet con congelar → deshacer → rehacer → deshacer (2026-09-21).
+
 ## Congelar cuadro
 
-`freezeFrameAtCurrentPosition()` (`VideoEditingActivity.kt:3644-3753`), con un clip
-seleccionado:
+Implementa `specs/congelar-cuadro.md`. `freezeFrameAtCurrentPosition()` en la Activity:
 
 1. Calcula el instante en el archivo fuente: `trimStartMs + (posición relativa × speed)`,
-   acotado al trim del clip (l.3662-3668).
-2. Extrae el cuadro con `MediaMetadataRetriever.getFrameAtTime(..., OPTION_CLOSEST_SYNC)`
-   (l.3670): toma el **keyframe más cercano**, no el cuadro exacto.
-3. Guarda un PNG y lo convierte con FFmpeg en un MP4 de 3 s (`h264_mediacodec`, l.3692).
-4. Crea `MergeItem(resultUri, 3000L)` (l.3711) con todo lo demás en valores por defecto:
-   **sin encuadre, espejo ni máscara del clip de origen**.
-5. Inserta el freeze en la lista (l.3720-3739):
-   - Instante dentro del trim → divide el clip: `[A, freeze, B]`.
-   - Instante ≤ inicio del trim (playhead justo al inicio del clip) → `[freeze, clip]`.
-   - Instante ≥ fin del trim → `[clip, freeze]`.
-6. Aplica la lista con `updateMainVideoTrim(newItems[0].trim…)` +
-   `updateSequenceOrder(newItems.drop(1))` (l.3743-3746). Son **dos** entradas de undo.
+   acotado al trim del clip.
+2. Extrae el cuadro con `MediaMetadataRetriever.getFrameAtTime(..., OPTION_CLOSEST_SYNC)`:
+   toma el **keyframe más cercano**, no el cuadro exacto.
+3. Guarda un PNG y lo convierte con FFmpeg en un MP4 de 3 s (`h264_mediacodec`).
+4. `insertFreezeFrame(...)` (`VideoEditingViewModelExt.kt`) arma la secuencia nueva: el freeze
+   hereda encuadre, espejo y la máscara congelada en ese instante (`MaskConfig.frozenAt`), no
+   velocidad ni reversa. Playhead dentro del clip → `[A, freeze, B]`; al inicio →
+   `[freeze, clip]`; al final → `[clip, freeze]`.
+5. `adoptMainClip(newItems[0])` + `reorderSequence(newItems)`: si el freeze quedó primero pasa a
+   principal. Una sola entrada de undo.
 
-### Comportamiento que resulta
-
-- **Freeze al inicio del clip principal** (`[freeze, principal, …]`): los trims del freeze
-  (0–3000 ms) se aplican al principal sin cambiar `sourceUri`. El principal queda recortado
-  a sus primeros 3 s, luego aparece una segunda copia del principal con su trim original y el
-  freeze desaparece. Confirmado leyendo el código; `[SIN VERIFICAR]` en la tablet.
-- **Clip encuadrado**: el freeze se ve a cuadro completo durante 3 s y luego el clip vuelve a
-  su encuadre. Preview y export coinciden.
-- **Clip espejado o enmascarado**: igual que el encuadre, el freeze sale sin espejo ni máscara.
-  `[SIN VERIFICAR]` en la tablet.
-- **Undo** tras congelar revierte primero la secuencia y requiere un segundo undo para el trim.
+Cubierto por `androidTest/.../FreezeFrameTest.kt` (CA1–CA6) y verificado en la tablet (CA1, CA6,
+CA7: preview y export de un clip encuadrado, 2026-09-21).
 
 ## Sin verificar
 

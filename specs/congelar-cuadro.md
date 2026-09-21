@@ -1,7 +1,7 @@
 ---
 feature: congelar cuadro
 issue: M-211 (punto 2)
-estado: aprobada (2026-09-21)
+estado: implementada (2026-09-21)
 actualizado: 2026-09-21
 ---
 
