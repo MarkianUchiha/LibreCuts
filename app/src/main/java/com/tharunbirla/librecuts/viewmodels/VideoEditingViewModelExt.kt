@@ -384,6 +384,43 @@ fun VideoEditingViewModel.reorderSequence(orderedItems: List<EditOperation.Merge
     })
 }
 
+/**
+ * Devuelve la secuencia completa con un freeze de [freezeUri] insertado en el clip [index], a
+ * [relativePosMs] de su inicio en el timeline. El resultado va directo a [reorderSequence], que se
+ * encarga de promover el freeze a principal si quedó primero.
+ *
+ * El freeze hereda lo que cambia cómo se ve el clip (encuadre, espejo, máscara) para no "brincar"
+ * durante sus segundos, pero no velocidad ni reversa: un cuadro fijo no tiene movimiento.
+ */
+fun insertFreezeFrame(
+    sequence: List<EditOperation.MergeItem>,
+    index: Int,
+    relativePosMs: Long,
+    freezeUri: Uri,
+    freezeDurationMs: Long = 3000L
+): List<EditOperation.MergeItem> {
+    val source = sequence.getOrNull(index) ?: return sequence
+    val freeze = EditOperation.MergeItem(
+        uri = freezeUri,
+        durationMs = freezeDurationMs,
+        isMirrored = source.isMirrored,
+        maskConfig = source.maskConfig.frozenAt(relativePosMs),
+        frame = source.frame
+    )
+
+    val splitSourceMs = source.trimStartMs + (relativePosMs * source.speed).toLong()
+    val replacement = when {
+        splitSourceMs <= source.trimStartMs -> listOf(freeze, source)
+        splitSourceMs >= source.trimEndMs -> listOf(source, freeze)
+        else -> listOf(
+            source.copy(trimEndMs = splitSourceMs),
+            freeze,
+            source.copy(trimStartMs = splitSourceMs)
+        )
+    }
+    return sequence.take(index) + replacement + sequence.drop(index + 1)
+}
+
 fun VideoEditingViewModel.deleteSequenceSegment(index: Int) {
     executeCommand(com.tharunbirla.librecuts.commands.MutateProjectCommand("Delete Segment") { project ->
         val ops = project.operations.toMutableList()

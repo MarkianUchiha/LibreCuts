@@ -3708,43 +3708,15 @@ class VideoEditingActivity : AppCompatActivity() {
             loadingScreen.visibility = View.GONE
 
             if (resultUri != null) {
-                val freezeFrameItem = com.tharunbirla.librecuts.models.EditOperation.MergeItem(resultUri, 3000L)
-                val newItems = mutableListOf<com.tharunbirla.librecuts.models.EditOperation.MergeItem>()
-                
-                var globalStartMs = 0L
-                for (i in 0 until index) {
-                    globalStartMs += sequenceItems[i].trimmedDurationMs
-                }
-                val relativePosMs = globalPos - globalStartMs
-                
-                for (i in 0 until sequenceItems.size) {
-                    if (i == index) {
-                        val splitSourceMs = item.trimStartMs + (relativePosMs * item.speed).toLong()
-                        if (splitSourceMs > item.trimStartMs && splitSourceMs < item.trimEndMs) {
-                            val itemA = item.copy(trimEndMs = splitSourceMs)
-                            val itemB = item.copy(trimStartMs = splitSourceMs)
-                            newItems.add(itemA)
-                            newItems.add(freezeFrameItem)
-                            newItems.add(itemB)
-                        } else if (splitSourceMs <= item.trimStartMs) {
-                            newItems.add(freezeFrameItem)
-                            newItems.add(item)
-                        } else {
-                            newItems.add(item)
-                            newItems.add(freezeFrameItem)
-                        }
-                    } else {
-                        newItems.add(sequenceItems[i])
-                    }
-                }
-                
+                val globalStartMs = sequenceItems.take(index).sumOf { it.trimmedDurationMs }
+                val newItems = insertFreezeFrame(sequenceItems, index, globalPos - globalStartMs, resultUri)
+
                 selectedVideoIndex = null
                 exitVideoEditingMode()
-                if (newItems.isNotEmpty()) {
-                    val primaryItem = newItems[0]
-                    viewModel.updateMainVideoTrim(primaryItem.trimStartMs, primaryItem.trimEndMs)
-                    viewModel.updateSequenceOrder(newItems.drop(1))
-                }
+                // reorderSequence y no updateMainVideoTrim + updateSequenceOrder: si el freeze quedó
+                // primero tiene que pasar a principal, no prestarle su recorte al video de antes.
+                adoptMainClip(newItems[0])
+                viewModel.reorderSequence(newItems)
                 Toast.makeText(this@VideoEditingActivity, R.string.toast_freeze_frame_added_to_sequence, Toast.LENGTH_SHORT).show()
             } else {
                 Toast.makeText(this@VideoEditingActivity, R.string.toast_failed_to_create_freeze_frame, Toast.LENGTH_SHORT).show()

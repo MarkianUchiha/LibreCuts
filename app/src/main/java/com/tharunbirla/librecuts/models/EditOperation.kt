@@ -218,6 +218,31 @@ sealed class EditOperation : Serializable {
                 feather = feath
             )
         }
+
+        /**
+         * La máscara fija en su estado de [timeMs], sin keyframes.
+         *
+         * No se usa [evaluatedAt] porque conserva los keyframes y, si la máscara anima otra cosa
+         * pero no el tamaño, iguala ancho y alto al promedio: una elipse ancha saldría redonda.
+         * Aquí solo se sustituye lo que de verdad está animado.
+         */
+        fun frozenAt(timeMs: Long): MaskConfig {
+            val pos = if (positionKeyframes.isEmpty()) Pair(relativeX, relativeY) else getInterpolatedPos(timeMs)
+            // Con keyframes de tamaño el render usa el mismo valor para ancho y alto (ver evaluatedAt).
+            val sizeScale = if (sizeKeyframes.isEmpty()) null else getInterpolatedSize(timeMs) / 200f
+            return copy(
+                relativeX = pos.first,
+                relativeY = pos.second,
+                relativeWidth = sizeScale ?: relativeWidth,
+                relativeHeight = sizeScale ?: relativeHeight,
+                rotationAngle = getInterpolatedRotation(timeMs),
+                feather = getInterpolatedFeather(timeMs),
+                positionKeyframes = emptyList(),
+                sizeKeyframes = emptyList(),
+                rotationKeyframes = emptyList(),
+                featherKeyframes = emptyList()
+            )
+        }
     }
 
     
