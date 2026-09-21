@@ -1326,6 +1326,7 @@ class VideoEditingActivity : AppCompatActivity() {
         mainVideoMaskContainer = findViewById(R.id.mainVideoMaskContainer)
         videoMaskOverlayView = try {
             findViewById<com.tharunbirla.librecuts.customviews.VideoMaskOverlayView>(R.id.videoMaskOverlayView)?.also { overlay ->
+                mainVideoMaskContainer?.let { overlay.followContainer(it) }
                 overlay.onMaskChanged = { maskConfig ->
                     selectedVideoIndex?.let { index ->
                         if (isKeyframeEditingMode) {
@@ -2472,6 +2473,8 @@ class VideoEditingActivity : AppCompatActivity() {
         container.scaleY = f.scale
         container.translationX = f.offsetX * ref.width()
         container.translationY = f.offsetY * ref.height()
+        // El contorno de la máscara lee esta transformación al dibujarse; hay que pedirle que lo haga.
+        videoMaskOverlayView?.invalidate()
     }
 
     /** Recalcula el encuadre del clip bajo el playhead; para cambios del proyecto con el video en pausa. */

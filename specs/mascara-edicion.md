@@ -44,8 +44,9 @@ coordenadas de la máscara; CA5 y CA6, en la tablet.
   rectángulo recortado del video en pantalla.
 - **CA3.** Arrastrar 100 px a la derecha y 100 px abajo mueve el centro del contorno 100 px en
   cada eje, sin encuadre y con encuadre de escala 0.5.
-- **CA4.** Pellizcar al doble duplica el ancho y el alto del contorno en pantalla, con y sin
-  encuadre.
+- **CA4.** Pellizcar al doble hace crecer el ancho y el alto del contorno en pantalla en la
+  misma proporción con y sin encuadre, cerca del doble (el detector de pellizco de Android
+  arranca tarde por la tolerancia del toque y se queda algo corto).
 - **CA5.** (Tablet.) Con encuadre, el contorno cian queda pegado al borde del área visible
   mientras se arrastra y se pellizca.
 - **CA6.** (Tablet.) Un proyecto con máscara guardado antes del arreglo exporta igual que antes.
