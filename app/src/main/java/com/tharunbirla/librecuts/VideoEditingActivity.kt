@@ -4490,17 +4490,27 @@ class VideoEditingActivity : AppCompatActivity() {
         }
         
         if (index == 0) {
-            val nextItem = items[1]
-            val newSourceFile = File(nextItem.uri.path ?: nextItem.uri.toString())
-            tempInputFile = newSourceFile
-            originalMainVideoDurationMs = nextItem.durationMs
-            videoFileName = tempInputFile.name
-            videoUri = nextItem.uri
+            adoptMainClip(items[1])
         }
 
         viewModel.deleteSequenceSegment(index)
         selectedVideoIndex = null
         exitVideoEditingMode()
+    }
+
+    /**
+     * Mueve el estado local del reproductor al clip que va a quedar como principal.
+     *
+     * El principal se reproduce desde `tempInputFile`, no desde `project.sourceUri`, así que cada
+     * operación que cambia cuál clip va primero (borrar, arrastrar, congelar) tiene que avisarle
+     * antes de mutar el proyecto.
+     */
+    private fun adoptMainClip(item: com.tharunbirla.librecuts.models.EditOperation.MergeItem) {
+        if (::tempInputFile.isInitialized && item.uri == Uri.fromFile(tempInputFile)) return
+        tempInputFile = File(item.uri.path ?: item.uri.toString())
+        videoFileName = tempInputFile.name
+        originalMainVideoDurationMs = item.durationMs
+        videoUri = item.uri
     }
 
     private fun extractAudioFromSegment(index: Int, item: com.tharunbirla.librecuts.models.EditOperation.MergeItem) {
@@ -6073,17 +6083,7 @@ class VideoEditingActivity : AppCompatActivity() {
 
                 val originalOrder = (0 until segmentViews.size).toList()
                 if (currentDragOrder != originalOrder) {
-                    // El primer clip de la secuencia es el principal (sourceUri + tempInputFile), no un
-                    // MergeItem. Si el arrastre cambió cuál va primero hay que mover con él el estado
-                    // local del reproductor, igual que al borrar el segmento 0.
-                    finalItems.firstOrNull()?.let { newMain ->
-                        if (!::tempInputFile.isInitialized || newMain.uri != Uri.fromFile(tempInputFile)) {
-                            tempInputFile = File(newMain.uri.path ?: newMain.uri.toString())
-                            videoFileName = tempInputFile.name
-                            originalMainVideoDurationMs = newMain.durationMs
-                            videoUri = newMain.uri
-                        }
-                    }
+                    finalItems.firstOrNull()?.let { adoptMainClip(it) }
                     viewModel.reorderSequence(finalItems)
                 } else {
                     viewModel.project.value?.let { renderTracks(it) }
