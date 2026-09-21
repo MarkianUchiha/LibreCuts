@@ -3,6 +3,16 @@
 Editor de video Android, FOSS, 100% local. Fork de `tharunbirla/LibreCuts` (remote `upstream`); el nuestro es `origin` (`MarkianUchiha/LibreCuts`).
 Distribución upstream: GitHub Releases, F-Droid, Obtainium (no Play Store).
 
+## Nivel SDD: Medio
+
+Evaluado el 2026-09-20 con la rúbrica de la skill `sdd`: **11/18** — costo del error 2, densidad de reglas 3, vida útil 3, estado de la base 3, acuerdo externo 0, superficie de integración 0. El override de "código heredado" fija el mismo piso, así que no sube.
+
+Artefactos que corresponden a Medio: `SPEC.md` de producto y `CONSTITUTION.md` en la raíz, `specs/<feature>.md` por feature, tareas como issues de Linear (ya se hace, ver Seguimiento) y un archivo de decisiones. Checkpoint humano entre spec y plan. **Ninguno de esos archivos existe todavía.**
+
+Por ser base heredada, la primera spec va **descriptiva**: `SPEC-ACTUAL.md` con lo que la app hace hoy, marcando `[SIN VERIFICAR]` lo que no se confirmó contra el código o el dispositivo. La spec de lo deseado viene después, con un diff explícito entre ambas.
+
+Comando de verificación: los tres de la sección Comandos. Los tests instrumentados corren aparte, en la tablet, y no entran en esa corrida.
+
 ## Meta del fork
 
 Fork **propio** (no se planea mandar PRs a upstream). En orden:
