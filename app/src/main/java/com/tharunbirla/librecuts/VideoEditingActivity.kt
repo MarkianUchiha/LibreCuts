@@ -177,6 +177,7 @@ class VideoEditingActivity : AppCompatActivity() {
     private var transitionPreviewOverlayView: com.tharunbirla.librecuts.customviews.TransitionPreviewOverlayView? = null
     private var activeTransitionIndex: Int = -1
     private var cachedTransitionBitmap: android.graphics.Bitmap? = null
+    private var cachedTransitionGeometry: com.tharunbirla.librecuts.customviews.TransitionPreviewOverlayView.SnapshotGeometry? = null
 
     // ViewModel and Services
     private lateinit var viewModel: VideoEditingViewModel
@@ -2589,6 +2590,36 @@ class VideoEditingActivity : AppCompatActivity() {
                 saveBitmapToGallery(bitmap)
             }
         }
+    }
+
+    /** Si el clip de la secuencia en [index] esta espejado. El principal lo guarda aparte. */
+    private fun isClipMirrored(index: Int): Boolean = if (index == 0) {
+        viewModel.project.value?.operations?.any { it is EditOperation.MirrorMain && it.isMirrored } == true
+    } else {
+        viewModel.project.value?.operations?.filterIsInstance<EditOperation.Merge>()
+            ?.firstOrNull()?.items?.getOrNull(index - 1)?.isMirrored == true
+    }
+
+    /**
+     * Donde cae el cuadro del video dentro del lienzo, sin el encuadre del contenedor: se acumula
+     * la posicion del TextureView hacia arriba y se corta en mainVideoMaskContainer, que es justo
+     * la vista que lleva el encuadre del clip activo.
+     */
+    private fun videoRectInCanvas(): android.graphics.RectF {
+        val container = mainVideoMaskContainer
+        val textureView = findTextureView(playerView)
+        if (container == null || textureView == null || textureView.width <= 0) {
+            return android.graphics.RectF(clipFrameReference)
+        }
+        var x = 0f
+        var y = 0f
+        var view: View = textureView
+        while (view !== container) {
+            x += view.left + view.translationX
+            y += view.top + view.translationY
+            view = view.parent as? View ?: break
+        }
+        return android.graphics.RectF(x, y, x + textureView.width, y + textureView.height)
     }
 
     private fun findTextureView(viewGroup: android.view.ViewGroup): android.view.TextureView? {
@@ -5669,12 +5700,7 @@ class VideoEditingActivity : AppCompatActivity() {
                 updateCanvasBackgroundPreview(activeClipIndex)
             }
 
-            val isMirrored = if (activeClipIndex == 0) {
-                viewModel.project.value?.operations?.any { it is com.tharunbirla.librecuts.models.EditOperation.MirrorMain && it.isMirrored } == true
-            } else {
-                viewModel.project.value?.operations?.filterIsInstance<com.tharunbirla.librecuts.models.EditOperation.Merge>()
-                    ?.firstOrNull()?.items?.getOrNull(activeClipIndex - 1)?.isMirrored == true
-            }
+            val isMirrored = isClipMirrored(activeClipIndex)
             
             val videoSurface = playerView.videoSurfaceView
             if (videoSurface != null) {
@@ -5712,10 +5738,18 @@ class VideoEditingActivity : AppCompatActivity() {
                                         cachedTransitionBitmap = null
                                     }
                                 }
+                                // La geometria es la del clip que sale, leida del proyecto: el
+                                // contenedor ya lleva la del entrante en cuanto se cruza el corte.
+                                cachedTransitionGeometry = com.tharunbirla.librecuts.customviews.TransitionPreviewOverlayView.SnapshotGeometry(
+                                    videoRect = videoRectInCanvas(),
+                                    frame = sequenceItems[i].frame ?: com.tharunbirla.librecuts.models.EditOperation.ClipFrame(),
+                                    isMirrored = isClipMirrored(i),
+                                    reference = android.graphics.RectF(clipFrameReference)
+                                )
                             }
 
                             transitionPreviewOverlayView?.visibility = View.VISIBLE
-                            transitionPreviewOverlayView?.updateTransition(transOp.type, prog, cachedTransitionBitmap)
+                            transitionPreviewOverlayView?.updateTransition(transOp.type, prog, cachedTransitionBitmap, cachedTransitionGeometry)
                             break
                         }
                     }
@@ -5727,6 +5761,7 @@ class VideoEditingActivity : AppCompatActivity() {
                     activeTransitionIndex = -1
                     cachedTransitionBitmap?.recycle()
                     cachedTransitionBitmap = null
+                    cachedTransitionGeometry = null
                     transitionPreviewOverlayView?.clearSnapshot()
                     transitionPreviewOverlayView?.visibility = View.GONE
                 }
