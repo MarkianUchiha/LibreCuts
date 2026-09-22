@@ -33,7 +33,7 @@ Fork **propio** (no se planea mandar PRs a upstream). En orden:
 - **Abrir el editor sin tocar la pantalla:** `am start -a android.intent.action.SEND -t video/mp4 --eu android.intent.extra.STREAM content://media/external/video/media/<id> -n com.tharunbirla.librecuts/.MainActivity`. Hay videos sintéticos de prueba en `/sdcard/Movies/librecuts_test*.mp4` (16:9 y 9:16); no usar los videos personales del usuario.
 - **Girar:** `settings put system accelerometer_rotation 0` + `settings put system user_rotation 1|0`. Reinstalar la app la regresa a 0. Al terminar, dejar `accelerometer_rotation 1`.
 - **Multitoque:** `sendevent` requiere root (bloqueado). Los gestos de dos dedos se prueban con tests instrumentados (`androidTest`, ver `TextOverlayPinchTest`).
-- **Tests instrumentados:** NO usar `connectedAndroidTest` (desinstala la app y borra sus datos). Usar `assembleDebugAndroidTest`, `adb install -r -t` del APK de test y `am instrument -w -e package com.tharunbirla.librecuts com.tharunbirla.librecuts.test/androidx.test.runner.AndroidJUnitRunner`.
+- **Tests instrumentados:** `node scripts/test-tablet.mjs` (toda la suite), `node scripts/test-tablet.mjs <NombreTest>` (una clase, basta el nombre) o `--skip-build` para reusar los APK. Hace el ciclo compilar → `adb install -r -t` → `am instrument`. NO usar `connectedAndroidTest`: desinstala la app y borra sus datos.
 - **Rendimiento en reposo:** `dumpsys gfxinfo com.tharunbirla.librecuts reset`, esperar 3 s y leer `Total frames rendered`. En reposo debe ser ~0.
 
 Todo lo de este archivo se verificó contra el código el 2026-09-17. Lo que no se pudo confirmar está en **No confirmado**.
