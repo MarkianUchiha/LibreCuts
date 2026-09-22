@@ -157,20 +157,59 @@ preview, no eligiendo un número.
 
 ---
 
+## D11 — El contenido del catálogo es propio y con licencia libre · 2026-09-22
+
+Las plantillas, sus videos de ejemplo y los efectos descargables los crea el equipo del proyecto.
+La música y el material que ponga el usuario salen de su dispositivo, no del catálogo.
+
+**Por qué:** quita de un golpe el problema de licencias de terceros, que es lo más caro de
+deshacer una vez publicado un catálogo. De paso evita la anti-feature *Non-Free Assets* de F-Droid,
+que marca apps que distribuyen media sin licencia libre.
+
+**Se pierde:** el catálogo crece al ritmo al que el equipo produzca contenido. Y queda una
+condición que no desaparece sola: **si un colaborador aporta una plantilla, tiene que ceder su
+licencia por escrito** (un archivo de contribución que lo diga basta). Sin eso el problema de
+licencias regresa por la puerta de atrás, que es justo lo que esta decisión quería evitar.
+
+---
+
+## D12 — El catálogo se publica como archivos estáticos, aparte de la app · 2026-09-22
+
+La app lee el índice del catálogo en tiempo de ejecución. Publicar o cambiar una plantilla es
+subir archivos al alojamiento; **no requiere compilar ni publicar una versión nueva de la app**
+(CA10 de `SPEC.md`).
+
+**Por qué:** el catálogo tiene que poder crecer cada semana sin arrastrar una release por tienda,
+y sin lógica de servidor no hay backend que mantener, que asegurar ni que pagar.
+
+**Se pierde:** la dirección base del catálogo sí queda dentro del APK, así que **mudarse de
+alojamiento sí obligaría a publicar una versión**. Se mitiga usando un dominio propio estable
+desde el principio, no el subdominio que regale el proveedor.
+
+**Sobre F-Droid:** sus anti-features relevantes son *Non-Free Network Services* ("depender
+enteramente de un servicio de red propietario") y *Tethered Network Services* ("depender de un
+servicio imposible o difícil de reemplazar"). Servir archivos estáticos sin lógica cerrada no
+encaja en la primera. Para la segunda, F-Droid dice explícitamente que no aplica si la app trae
+"una opción de configuración sencilla que permita apuntar a otra instancia disponible y
+autoalojable": conviene dejar la dirección del catálogo configurable desde ajustes. Es barato
+hacerlo desde el principio y caro añadirlo después.
+
+---
+
 ## Decisiones abiertas
 
 Anotadas para que no se pierdan; no están tomadas.
 
-- **Cómo se distribuye una plantilla.** Qué contiene (clips de muestra, fuentes, música), cómo
-  declara los huecos que el usuario rellena, y si se versiona. Recomendación a discutir: reusar el
-  formato `.lcprj` que ya existe, con huecos declarados, para no inventar un segundo formato de
-  proyecto.
-- **Dónde vive el catálogo.** Un archivo estático servido desde donde ya se publican las releases
-  evitaría montar y pagar un servidor, y encaja con "sin cuentas". Sin evaluar.
-- **Licencias del contenido del catálogo.** Si una plantilla trae música o fuentes, hay que poder
-  redistribuirlas. Es lo que más fácil se pasa por alto y lo más caro de deshacer.
-- **Qué pasa cuando el catálogo no responde.** La app tiene que seguir editando igual; falta
-  definir qué se le dice al usuario.
+- **Qué forma tiene una plantilla.** Sigue abierto, pero con un dato nuevo: CapCut separa la
+  estructura del material — un segmento de una pista no lleva su archivo dentro, lleva un
+  identificador que apunta a una lista de materiales. Esa indirección es justo lo que convierte un
+  proyecto en plantilla. Nuestro `.lcprj` hoy **no** la tiene: cada `MergeItem` carga su `sourceUri`
+  encima. Reusar `.lcprj` sigue siendo la vía recomendada, pero implica meterle esa separación
+  antes, no después.
+- **Dónde se aloja el catálogo.** Decidido que son archivos estáticos (D12); falta elegir el
+  proveedor y registrar el dominio estable.
+- **Qué pasa si el catálogo deja de existir.** Lo descargado tiene que seguir funcionando; falta
+  definir si la app avisa de algún modo cuando el catálogo lleva mucho sin responder.
 - **Si migrar a AndroidX Media3.** ExoPlayer 2.19.1 está deprecado. Es un cambio grande de imports
   y API, y no puede hacerse a medias.
 - **Si subir ffmpeg-kit a 2.2.x** (FFmpeg 8.1.1). Sin evaluar.

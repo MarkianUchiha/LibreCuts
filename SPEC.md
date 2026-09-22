@@ -75,7 +75,7 @@ Lo marcado **(fase 3)** todavía no existe; ver *Orden de trabajo*.
    algo que compila sin ruido.
 2. **Que lo que existe funcione.** Corregir los bugs conocidos y traducir la interfaz al español.
    Es la fase actual.
-3. **Crecer.** Tres bloques, en este orden:
+3. **Crecer.** Empieza al cerrar las fases 1 y 2. Tres bloques, en este orden:
 
 ### 3a — Multipista de video
 
@@ -96,9 +96,17 @@ la plantilla ya aplicada: a partir de ahí es un proyecto normal, editable en to
 
 Al inicio todas las plantillas son gratuitas.
 
+**Quién las hace:** las plantillas y sus videos de ejemplo los crea el equipo del proyecto. El
+usuario solo descarga y aplica; **no envía nada**, ni sus materiales ni plantillas propias. Que un
+usuario pueda publicar las suyas es una posibilidad futura y lejana, fuera de esta spec.
+
 **Descargar o aplicar en línea:** la spec dice descargar. Aplicar en línea obligaría a subir el
 material del usuario, que contradice el principio 1; una plantilla descargada además se reusa sin
 conexión y no vuelve a costar tráfico. Queda abierto el resto del diseño (ver `Decisiones.md`).
+
+**Cuando el catálogo no responde:** por ahora un mensaje genérico ("Disculpa, estamos teniendo
+dificultades técnicas") y el resto de la app sigue funcionando. El texto definitivo se decide con
+la retroalimentación de la beta.
 
 ### 3c — Efectos y transiciones descargables
 
@@ -124,6 +132,10 @@ Del producto, no de una feature. Cada uno es comprobable:
 - **CA7 (fase 3).** Una plantilla ya descargada se aplica y se edita con el modo avión activado.
 - **CA8 (fase 3).** Con el número máximo de pistas que declare la app, la vista previa se
   reproduce sin saltarse cuadros en el dispositivo de referencia.
+- **CA9 (fase 3).** Todo el contenido del catálogo se distribuye bajo una licencia libre explícita,
+  propia o cedida por quien lo aportó. La app no incluye ni descarga material de terceros sin ella.
+- **CA10 (fase 3).** Publicar una plantilla nueva no requiere compilar ni publicar una versión de
+  la app.
 
 ## Diff contra el estado actual
 
@@ -142,5 +154,5 @@ Del producto, no de una feature. Cada uno es comprobable:
 ## Verificación
 
 Los tres comandos de `CLAUDE.md` (`assembleDebug`, `lintDebug`, `testDebugUnitTest`) más los
-tests instrumentados en la tablet (`node scripts/test-tablet.mjs`). Los criterios CA1 a CA8 se
+tests instrumentados en la tablet (`node scripts/test-tablet.mjs`). Los criterios CA1 a CA10 se
 comprueban a mano en el dispositivo, uno por release.
