@@ -7,7 +7,17 @@ Distribución upstream: GitHub Releases, F-Droid, Obtainium (no Play Store).
 
 Evaluado el 2026-09-20 con la rúbrica de la skill `sdd`: **11/18** — costo del error 2, densidad de reglas 3, vida útil 3, estado de la base 3, acuerdo externo 0, superficie de integración 0. El override de "código heredado" fija el mismo piso, así que no sube.
 
-Artefactos que corresponden a Medio: `SPEC.md` de producto y `CONSTITUTION.md` en la raíz, `specs/<feature>.md` por feature, tareas como issues de Linear (ya se hace, ver Seguimiento) y un archivo de decisiones. Checkpoint humano entre spec y plan. **Ninguno de esos archivos existe todavía.**
+Artefactos que corresponden a Medio, todos en la raíz salvo las specs de feature:
+
+| Archivo | Qué es | Estado |
+|---|---|---|
+| `SPEC.md` | Producto: qué queremos que sea la app | Propuesta, pendiente de aprobación |
+| `SPEC-ACTUAL.md` | Descriptiva: qué hace hoy | En progreso (secuencia, congelar, máscara, transiciones) |
+| `CONSTITUTION.md` | Stack, prohibiciones, convenciones | Propuesta, pendiente de aprobación |
+| `Decisiones.md` | Una entrada por decisión que costaría volver a tomar | D1–D8 más las abiertas |
+| `specs/<feature>.md` | Una por feature | `congelar-cuadro`, `mascara-edicion`, `transicion-preview` |
+
+Tareas como issues de Linear (ver Seguimiento). Checkpoint humano entre spec y plan.
 
 Por ser base heredada, la primera spec va **descriptiva**: `SPEC-ACTUAL.md` con lo que la app hace hoy, marcando `[SIN VERIFICAR]` lo que no se confirmó contra el código o el dispositivo. La spec de lo deseado viene después, con un diff explícito entre ambas.
 
