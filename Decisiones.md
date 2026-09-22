@@ -125,12 +125,52 @@ las rutas de los APK. A cambio, el ciclo pasó de seis comandos a uno.
 
 ---
 
+## D9 — La app deja de ser estrictamente sin red · 2026-09-22
+
+Se acepta que la app use una conexión para **traer** contenido opcional (plantillas, efectos,
+transiciones). El principio deja de ser "no usa red" y pasa a ser "la red solo trae, nunca lleva":
+el material del usuario sigue sin salir del dispositivo, y editar y exportar siguen funcionando
+con el modo avión.
+
+**Por qué:** las plantillas son la función que el usuario considera más importante del fork, y un
+catálogo que crece sin publicar una versión nueva de la app necesita traer contenido de algún lado.
+
+**Se pierde:** la promesa deja de ser de una sola línea y hay que explicarla. Aparecen cosas que
+antes no existían: alojar el catálogo, licenciar el contenido que se distribuye, y la posibilidad
+de que la app quede inservible si ese alojamiento desaparece — de ahí que lo descargado deba
+funcionar sin volver a consultarlo. `[SIN VERIFICAR]` cómo etiqueta F-Droid una app que descarga
+contenido de un servicio propio; conviene revisarlo antes de construirlo, no después.
+
+---
+
+## D10 — La multipista de video es un objetivo, no un límite · 2026-09-22
+
+Estaba escrito en `SPEC.md` como algo que la app no haría. Se corrige: sí se quiere, en la fase 3.
+
+**Por qué:** era una deducción mía a partir del modelo actual (una sola secuencia), no una
+decisión. CapCut es la vara y hace multipista.
+
+**Sobre el tope:** el decodificador H.264 por hardware de la tablet de prueba declara 16
+instancias concurrentes (`OMX.qcom.video.decoder.avc`, leído de `/vendor/etc/media_codecs.xml` el
+2026-09-22), así que el códec no es el techo. El tope se fijará midiendo memoria y fluidez del
+preview, no eligiendo un número.
+
+---
+
 ## Decisiones abiertas
 
 Anotadas para que no se pierdan; no están tomadas.
 
-- **Cuáles son los diferenciadores del fork** (fase 3 del `SPEC.md`). Sin esto la fase 3 no tiene
-  alcance.
+- **Cómo se distribuye una plantilla.** Qué contiene (clips de muestra, fuentes, música), cómo
+  declara los huecos que el usuario rellena, y si se versiona. Recomendación a discutir: reusar el
+  formato `.lcprj` que ya existe, con huecos declarados, para no inventar un segundo formato de
+  proyecto.
+- **Dónde vive el catálogo.** Un archivo estático servido desde donde ya se publican las releases
+  evitaría montar y pagar un servidor, y encaja con "sin cuentas". Sin evaluar.
+- **Licencias del contenido del catálogo.** Si una plantilla trae música o fuentes, hay que poder
+  redistribuirlas. Es lo que más fácil se pasa por alto y lo más caro de deshacer.
+- **Qué pasa cuando el catálogo no responde.** La app tiene que seguir editando igual; falta
+  definir qué se le dice al usuario.
 - **Si migrar a AndroidX Media3.** ExoPlayer 2.19.1 está deprecado. Es un cambio grande de imports
   y API, y no puede hacerse a medias.
 - **Si subir ffmpeg-kit a 2.2.x** (FFmpeg 8.1.1). Sin evaluar.
