@@ -119,6 +119,27 @@ CA7: preview y export de un clip encuadrado, 2026-09-21).
   contenedor; la máscara no se espeja, y en el export `hflip` va antes de la máscara. Preview y
   export coinciden. `[SIN VERIFICAR]` en la tablet.
 
+## Preview de transiciones
+
+- **Cuándo:** en cada actualización del preview, si el playhead está a ±500 ms de un corte que
+  tiene `EditOperation.Transition` (`VideoEditingActivity.kt:5683-5730`, ventana fija de 1 s
+  aunque el panel permite elegir la duración `[SIN VERIFICAR]` cuál usa el export).
+- **Cómo:** al entrar en la ventana se toma una captura del clip saliente con
+  `textureView.getBitmap(ancho/2, alto/2)` (l.5707) y `TransitionPreviewOverlayView` la dibuja
+  encima del video en vivo con el efecto (fade, wipe, slide, circlecrop, zoom…) y el avance
+  `prog` de 0 a 1. La captura estira su bitmap a todo el overlay (`TransitionPreviewOverlayView.kt:62`).
+- **Dónde:** el overlay vive dentro de `mainVideoMaskContainer` (`activity_video_editing.xml:202`),
+  así que hereda el encuadre y la máscara **del clip activo**.
+- **Resultado, verificado en la tablet (2026-09-21, M-211 punto 3):** con A encuadrado
+  abajo-derecha, un clip B encuadrado arriba-izquierda y "Wipe L" entre ambos, pasada la mitad
+  de la transición la franja de A se dibuja con el encuadre de B: A brinca de posición.
+- `getBitmap()` devuelve el cuadro sin la transformación de vistas, así que la captura tampoco
+  lleva el espejo (`scaleX` de la superficie) ni el encuadre del saliente. `[SIN VERIFICAR]` en
+  la tablet: espejo, y deformación con un recorte activo (el `playerView` es más grande que el
+  lienzo y la captura se estira al lienzo).
+- El export arma cada clip ya encuadrado y enmascarado antes del `xfade`. `[SIN VERIFICAR]` un
+  export con transición entre clips de distinto encuadre.
+
 ## Sin verificar
 
 - Si el cuadro congelado coincide visualmente con el del playhead: `OPTION_CLOSEST_SYNC` sugiere
