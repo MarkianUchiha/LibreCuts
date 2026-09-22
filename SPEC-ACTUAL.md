@@ -127,18 +127,27 @@ CA7: preview y export de un clip encuadrado, 2026-09-21).
 - **Cómo:** al entrar en la ventana se toma una captura del clip saliente con
   `textureView.getBitmap(ancho/2, alto/2)` (l.5707) y `TransitionPreviewOverlayView` la dibuja
   encima del video en vivo con el efecto (fade, wipe, slide, circlecrop, zoom…) y el avance
-  `prog` de 0 a 1. La captura estira su bitmap a todo el overlay (`TransitionPreviewOverlayView.kt:62`).
-- **Dónde:** el overlay vive dentro de `mainVideoMaskContainer` (`activity_video_editing.xml:202`),
-  así que hereda el encuadre y la máscara **del clip activo**.
-- **Resultado, verificado en la tablet (2026-09-21, M-211 punto 3):** con A encuadrado
-  abajo-derecha, un clip B encuadrado arriba-izquierda y "Wipe L" entre ambos, pasada la mitad
-  de la transición la franja de A se dibuja con el encuadre de B: A brinca de posición.
-- `getBitmap()` devuelve el cuadro sin la transformación de vistas, así que la captura tampoco
-  lleva el espejo (`scaleX` de la superficie) ni el encuadre del saliente. `[SIN VERIFICAR]` en
-  la tablet: espejo, y deformación con un recorte activo (el `playerView` es más grande que el
-  lienzo y la captura se estira al lienzo).
-- El export arma cada clip ya encuadrado y enmascarado antes del `xfade`. `[SIN VERIFICAR]` un
-  export con transición entre clips de distinto encuadre.
+  `prog` de 0 a 1.
+- **Dónde:** el overlay es hermano de `mainVideoMaskContainer`, no hijo
+  (`activity_video_editing.xml:202`), así que no hereda el encuadre ni la máscara del clip activo.
+- **Geometría del saliente:** junto con la captura se guarda una `SnapshotGeometry` con el
+  encuadre, el espejo y la máscara del clip que sale, leídos del proyecto (`sequenceItems[i]`),
+  más el rectángulo del cuadro de video dentro del lienzo (`videoRectInCanvas()`). El overlay
+  arma con eso la matriz con que dibuja la captura; los efectos se siguen midiendo sobre el
+  lienzo, como `xfade` en el export.
+- **Resultado, verificado en la tablet (2026-09-22, M-211 punto 3):** con un clip encuadrado
+  arriba-izquierda saliendo hacia otro encuadrado abajo-derecha y "Wipe L" entre ambos, la
+  franja del saliente se queda en su sitio durante toda la transición. Medido sobre las capturas:
+  su borde inferior está en 0.774 del alto del lienzo antes y después del corte, y en 0.777 en el
+  cuadro equivalente del export.
+- Sin encuadre ni espejo el dibujo es el mismo de antes del arreglo: la captura llena el lienzo
+  (verificado en la tablet, 2026-09-22).
+- El difuminado de la máscara no se aplica a la captura: el overlay solo recorta. Es coherente
+  con M-228, donde el difuminado tampoco se ve fuera de las transiciones.
+- El export arma cada clip ya encuadrado y enmascarado antes del `xfade`.
+- **Limitación conocida:** con un *seek* directo a mitad de la transición, la geometría es la
+  correcta pero la imagen capturada puede ser ya la del clip entrante, porque sale del
+  `TextureView` en ese instante. Pasaba igual antes del arreglo.
 
 ## Sin verificar
 

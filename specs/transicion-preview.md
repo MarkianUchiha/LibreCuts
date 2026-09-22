@@ -1,7 +1,7 @@
 ---
 feature: preview de transiciones entre clips
 issue: M-211 (punto 3)
-estado: aprobada
+estado: implementada y verificada
 actualizado: 2026-09-22
 ---
 
@@ -49,6 +49,18 @@ saliente se dibuja con la geometría que se le indique); CA4–CA6, en la tablet
 - **CA6.** (Tablet.) Un cuadro del export a mitad de la transición de CA4 **sin máscara** (solo
   encuadre y espejo) muestra a A y B en las mismas posiciones que el preview. Se deja fuera la
   máscara porque el export con máscara es impracticablemente lento (M-227).
+
+## Verificación (2026-09-22)
+
+- **CA1, CA2, CA3:** `TransitionPreviewGeometryTest` (5 tests, incluye el recorte por la máscara
+  del saliente). Rojo antes del arreglo, verde después. Suite instrumentada completa: 90/90.
+- **CA4:** tablet. Freeze encuadrado arriba-izquierda saliendo hacia el clip encuadrado
+  abajo-derecha con "Wipe L". El borde inferior del saliente se mide en 0.774 del alto del lienzo
+  en las capturas de antes y de después del corte: no se mueve.
+- **CA5:** tablet. Los mismos dos clips sin encuadre: la captura llena el lienzo (0.000–0.997) en
+  toda la ventana de la transición, igual que antes del arreglo.
+- **CA6:** el cuadro equivalente del export mide 0.777 contra los 0.774 del preview — coinciden
+  dentro del error de medición (~2 px de 650). Escena sin máscara, como se acordó.
 
 ## Diff contra el estado actual
 
