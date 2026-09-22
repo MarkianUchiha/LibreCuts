@@ -220,12 +220,12 @@ class VideoMaskOverlayView @JvmOverloads constructor(
             }
             EditOperation.MaskShape.HEART -> {
                 val path = android.graphics.Path()
-                createHeartPath(path, cx, cy, mw, mh)
+                MaskPath.heart(path, cx, cy, mw, mh)
                 canvas.drawPath(path, maskPaint)
             }
             EditOperation.MaskShape.STAR -> {
                 val path = android.graphics.Path()
-                createStarPath(path, cx, cy, mw / 2f, mw / 4f)
+                MaskPath.star(path, cx, cy, mw / 2f, mw / 4f)
                 canvas.drawPath(path, maskPaint)
             }
             else -> {}
@@ -236,36 +236,5 @@ class VideoMaskOverlayView @JvmOverloads constructor(
         canvas.drawCircle(cx, cy, handleRadius, handleStrokePaint)
 
         canvas.restore()
-    }
-
-    private fun createHeartPath(path: android.graphics.Path, cx: Float, cy: Float, width: Float, height: Float) {
-        path.reset()
-        val topCurveHeight = height * 0.3f
-        path.moveTo(cx, cy + height * 0.4f)
-        path.cubicTo(
-            cx - width * 0.5f, cy + height * 0.1f,
-            cx - width * 0.5f, cy - topCurveHeight,
-            cx, cy - topCurveHeight * 0.4f
-        )
-        path.cubicTo(
-            cx + width * 0.5f, cy - topCurveHeight,
-            cx + width * 0.5f, cy + height * 0.1f,
-            cx, cy + height * 0.4f
-        )
-        path.close()
-    }
-
-    private fun createStarPath(path: android.graphics.Path, cx: Float, cy: Float, radiusOuter: Float, radiusInner: Float) {
-        path.reset()
-        val points = 5
-        val angle = Math.PI / points
-        for (i in 0 until 2 * points) {
-            val r = if (i % 2 == 0) radiusOuter else radiusInner
-            val currAngle = i * angle - Math.PI / 2
-            val x = (cx + r * Math.cos(currAngle)).toFloat()
-            val y = (cy + r * Math.sin(currAngle)).toFloat()
-            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
-        }
-        path.close()
     }
 }
