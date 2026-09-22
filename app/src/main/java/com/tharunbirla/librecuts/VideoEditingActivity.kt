@@ -9182,6 +9182,16 @@ class VideoEditingActivity : AppCompatActivity() {
             draggableImageOverlay?.maskConfig ?: com.tharunbirla.librecuts.models.EditOperation.MaskConfig()
         }
         
+        // En un clip de video la máscara también se edita con el dedo sobre el preview, y el overlay
+        // guarda cada gesto en el proyecto sin pasar por este panel. Partir de currentMask aquí
+        // descartaba esos gestos al mover un deslizador o al cerrar; lo vigente es lo guardado.
+        fun latestMask(): com.tharunbirla.librecuts.models.EditOperation.MaskConfig =
+            if (isMainVideo) {
+                selectedVideoIndex?.let { getSequenceItems().getOrNull(it)?.maskConfig } ?: currentMask
+            } else {
+                currentMask
+            }
+
         switchInvert.isChecked = currentMask.isInverted
         sliderFeather?.value = currentMask.feather.coerceIn(0f, 100f)
         tvFeatherValue?.text = "${currentMask.feather.toInt()}%"
@@ -9245,7 +9255,7 @@ class VideoEditingActivity : AppCompatActivity() {
         }
 
         fun updateMaskShape(shape: com.tharunbirla.librecuts.models.EditOperation.MaskShape) {
-            val newMask = currentMask.copy(shape = shape)
+            val newMask = latestMask().copy(shape = shape)
             applyMaskToView(newMask)
             highlightShape(shape)
         }
@@ -9260,20 +9270,20 @@ class VideoEditingActivity : AppCompatActivity() {
 
         sliderFeather?.addOnChangeListener { _, value, _ ->
             tvFeatherValue?.text = "${value.toInt()}%"
-            val newMask = currentMask.copy(feather = value)
+            val newMask = latestMask().copy(feather = value)
             applyMaskToView(newMask)
         }
 
         sliderSize?.addOnChangeListener { _, value, _ ->
             tvSizeValue?.text = "${value.toInt()}%"
             val relScale = value / 200f
-            val newMask = currentMask.copy(relativeWidth = relScale, relativeHeight = relScale)
+            val newMask = latestMask().copy(relativeWidth = relScale, relativeHeight = relScale)
             applyMaskToView(newMask)
         }
 
         sliderRotation?.addOnChangeListener { _, value, _ ->
             tvRotationValue?.text = "${value.toInt()}°"
-            val newMask = currentMask.copy(rotationAngle = value)
+            val newMask = latestMask().copy(rotationAngle = value)
             applyMaskToView(newMask)
         }
 
@@ -9282,7 +9292,7 @@ class VideoEditingActivity : AppCompatActivity() {
         }
 
         switchInvert.setOnCheckedChangeListener { _, isChecked ->
-            val newMask = currentMask.copy(isInverted = isChecked)
+            val newMask = latestMask().copy(isInverted = isChecked)
             applyMaskToView(newMask)
         }
 
@@ -9302,8 +9312,9 @@ class VideoEditingActivity : AppCompatActivity() {
             if (isMainVideo) {
                 videoMaskOverlayView?.isEditingMode = false
                 selectedVideoIndex?.let { index ->
-                    viewModel.updateMergeItemMask(index, currentMask)
-                    mainVideoMaskContainer?.maskConfig = currentMask
+                    val finalMask = latestMask()
+                    viewModel.updateMergeItemMask(index, finalMask)
+                    mainVideoMaskContainer?.maskConfig = finalMask
                 }
             } else {
                 draggableImageOverlay?.isMaskEditingMode = false

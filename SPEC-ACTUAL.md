@@ -99,15 +99,22 @@ CA7: preview y export de un clip encuadrado, 2026-09-21).
   `:2420-2424`), y es el que recibe el encuadre (`applyClipFramePreview`, l.2464: pivote en el
   centro de `clipFrameReference`, `scale`, `translation = offset × tamaño de la referencia`). La
   máscara viaja con el clip, igual que en el export, donde se aplica al clip antes de encuadrarlo.
-- **Dónde se edita:** `VideoMaskOverlayView` es hermano de `canvasContainer`, ocupa todo el preview
-  (`activity_video_editing.xml:244`) y no recibe el encuadre. Dibuja el contorno y convierte el
-  arrastre (`dx / width`, `dy / height`) con **su propio** tamaño.
-- **Resultado, verificado en la tablet (2026-09-21):** con un clip 16:9 sin encuadre y una
-  máscara rectangular al 50 %, el contorno cian mide el doble de alto que el área que la máscara
-  deja ver: cubre toda la altura del video. Por la misma razón el arrastre vertical mueve la
-  máscara a la mitad de la velocidad del dedo. Con encuadre se suma el desfase del issue M-211
-  (punto 1): el contorno no sigue la escala ni el desplazamiento del clip. `[SIN VERIFICAR]` la
-  magnitud exacta con encuadre.
+- **Dónde se edita:** `VideoMaskOverlayView` es hermano de `canvasContainer` y ocupa todo el
+  preview (`activity_video_editing.xml:244`), pero desde M-211 (punto 1) sigue al contenedor
+  (`followContainer`): en cada dibujo y toque arma la matriz contenedor → overlay recorriendo la
+  jerarquía de vistas, dibuja el contorno con ella y pasa los toques por su inversa. Así el
+  contorno coincide con la máscara, sigue el encuadre y el arrastre es 1:1 con el dedo.
+  Implementa `specs/mascara-edicion.md`; cubierto por `MaskOverlaySpaceTest` y verificado en la
+  tablet (2026-09-21).
+- **Panel de máscara:** los deslizadores, la forma y el cierre parten de la máscara guardada en
+  el proyecto (`latestMask()`), porque el overlay guarda cada gesto por su cuenta
+  (`onMaskChanged` → `updateMergeItemMask`). Antes partían de una copia local y descartaban los
+  gestos. Cada paso de un arrastre es una entrada de undo aparte.
+- **Difuminado en el preview:** con `feather > 0` la máscara se dibuja con `saveLayer` +
+  `DST_IN` + `BlurMaskFilter` (`MaskedFrameLayout.kt:44-62`) y en la tablet el video se ve
+  completo, sin máscara (2026-09-21). El valor sí se guarda. `[SIN VERIFICAR]` en el export.
+- **Export con máscara:** muy lento en la tablet: 5 % en unos 3 minutos para 30 s de video
+  (2026-09-21). Causa `[SIN VERIFICAR]`.
 - **Espejo:** se aplica solo a la superficie de video (`scaleX = -1`, l.5678) dentro del
   contenedor; la máscara no se espeja, y en el export `hflip` va antes de la máscara. Preview y
   export coinciden. `[SIN VERIFICAR]` en la tablet.

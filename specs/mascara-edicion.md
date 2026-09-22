@@ -1,7 +1,7 @@
 ---
 feature: editar la máscara de un clip
 issue: M-211 (punto 1)
-estado: aprobada (2026-09-21)
+estado: implementada (2026-09-21)
 actualizado: 2026-09-21
 ---
 
@@ -25,6 +25,10 @@ tamaño. El video se recorta en vivo con la máscara.
 4. **Pellizcar cambia el tamaño en la misma proporción que el gesto**, con o sin encuadre.
 5. **Lo que se guarda no cambia de significado.** Una máscara ya guardada en un proyecto se ve
    igual antes y después del arreglo, en preview y en export.
+6. **Lo que se hace con el dedo se conserva.** Lo que se arrastra o pellizca sobre el video
+   queda guardado al cerrar el panel, y mover después un deslizador (difuminado, tamaño,
+   rotación) o cambiar la forma no lo regresa a su valor anterior. (Añadida el 2026-09-21: al
+   verificar se encontró que el panel guardaba su copia local y descartaba los gestos.)
 
 ## Qué NO hace (fuera de alcance)
 
@@ -32,6 +36,8 @@ tamaño. El video se recorta en vivo con la máscara.
 - Keyframes de máscara (M-197) y su desfase al dividir (M-218).
 - Rotar la máscara con dos dedos (hoy solo con el deslizador).
 - El preview de transiciones (M-211 punto 3, spec aparte).
+- La máscara de las imágenes superpuestas (usa otro overlay y otro camino de guardado).
+- La velocidad del export con máscara.
 
 ## Criterios de aceptación
 
@@ -50,6 +56,8 @@ coordenadas de la máscara; CA5 y CA6, en la tablet.
 - **CA5.** (Tablet.) Con encuadre, el contorno cian queda pegado al borde del área visible
   mientras se arrastra y se pellizca.
 - **CA6.** (Tablet.) Un proyecto con máscara guardado antes del arreglo exporta igual que antes.
+- **CA7.** (Tablet.) Arrastrar la máscara, mover el deslizador de difuminado y cerrar el panel:
+  la máscara queda donde se arrastró, con el difuminado nuevo.
 
 ## Diff contra el estado actual
 
@@ -59,3 +67,4 @@ coordenadas de la máscara; CA5 y CA6, en la tablet.
 | Contorno con encuadre | No sigue escala ni desplazamiento | Los sigue (regla 2) |
 | Arrastre | Velocidad según el tamaño del overlay y sin considerar la escala | 1:1 con el dedo (regla 3) |
 | Máscara guardada, preview y export | Coinciden | Sin cambio (regla 5) |
+| Gestos al cerrar el panel o mover un deslizador | Se pierden: el panel guarda su copia local | Se conservan (regla 6) |
