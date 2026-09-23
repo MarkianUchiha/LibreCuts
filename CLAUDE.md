@@ -36,7 +36,8 @@ Fork **propio** (no se planea mandar PRs a upstream). En orden:
 - Título: `[APP-ANDROID][LibreCuts] ...` (el Linear es compartido con otros proyectos del usuario; el tag deja claro de cuál es).
 - Labels: `app-android` + `Bug` / `Feature` / `Improvement`.
 - Dispositivo de prueba: tablet Honor ELN-W09, Android 13 (API 33), MagicOS 7.1, arm64, ~3.7 GB RAM. Instalar con `./gradlew installDebug`.
-- Hay además un dispositivo con **Android 16** en el equipo, necesario para todo lo que dependa del comportamiento de API 35/36 (M-236). Faltan sus datos: modelo, tamaño de pantalla y ABI.
+- Segundo dispositivo, **Android 16**: teléfono Honor ELP-NX9 (build ELP-N09), Android 16 (API 36), MagicOS 10.0, arm64-v8a, 1224×2700 px a 520 dpi (~377×831 dp), ~11 GB RAM. Necesario para todo lo que dependa del comportamiento de API 35/36 (M-236). Es teléfono, no tablet: sirve también para probar pantallas angostas. Su `persist.log.tag` es `M`, no `S` como en la tablet [SIN VERIFICAR si silencia los logs].
+- Con los dos conectados, `adb` necesita `-s <serial>`.
 
 ## Probar en la tablet (lecciones aprendidas)
 
