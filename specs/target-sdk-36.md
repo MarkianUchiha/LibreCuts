@@ -1,7 +1,7 @@
 ---
 feature: la app cumple lo que Android 16 exige a quien apunta a API 36
 issue: M-236
-estado: borrador
+estado: aprobada
 actualizado: 2026-09-22
 ---
 
