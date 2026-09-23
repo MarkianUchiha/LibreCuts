@@ -1,7 +1,7 @@
 ---
 feature: el editor se usa completo en horizontal
 issue: M-194
-estado: borrador
+estado: aprobada
 actualizado: 2026-09-22
 ---
 
