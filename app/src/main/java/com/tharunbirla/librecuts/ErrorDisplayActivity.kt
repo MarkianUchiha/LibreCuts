@@ -7,6 +7,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.view.ViewGroup
 import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
@@ -14,11 +15,14 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.pm.PackageInfoCompat
 import com.google.android.material.button.MaterialButton
 import com.tharunbirla.librecuts.R
+import com.tharunbirla.librecuts.utils.applySystemBarsPadding
 
 class ErrorDisplayActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_error_display)
+        // Con targetSdk 36 la ventana se dibuja debajo de las barras del sistema.
+        findViewById<ViewGroup>(android.R.id.content).getChildAt(0).applySystemBarsPadding()
 
         val errorCode = intent.getStringExtra("ERROR_CODE") ?: "LC-500"
         val errorLog = intent.getStringExtra("ERROR_LOG") ?: "No log available"

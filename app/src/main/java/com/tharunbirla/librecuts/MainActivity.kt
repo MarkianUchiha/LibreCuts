@@ -22,6 +22,7 @@ import androidx.core.os.LocaleListCompat
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.tharunbirla.librecuts.databinding.ActivityMainBinding
 import com.tharunbirla.librecuts.utils.ErrorCode
+import com.tharunbirla.librecuts.utils.applySystemBarsPadding
 import com.tharunbirla.librecuts.utils.setBounceClickListener
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
@@ -128,6 +129,8 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        // Con targetSdk 36 la ventana se dibuja debajo de las barras del sistema.
+        binding.root.applySystemBarsPadding()
 
         binding.btnImport.setBounceClickListener {
             Log.d("ButtonClick", "Launching video selection.")

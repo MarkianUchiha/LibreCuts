@@ -24,6 +24,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.tharunbirla.librecuts.models.EditOperation
 import com.tharunbirla.librecuts.models.EditRecipe
 import com.tharunbirla.librecuts.utils.ProjectSerializer
+import com.tharunbirla.librecuts.utils.applySystemBarsPadding
 import com.tharunbirla.librecuts.utils.setBounceClickListener
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -156,6 +157,8 @@ class ProjectImportActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_project_import)
+        // Con targetSdk 36 la ventana se dibuja debajo de las barras del sistema.
+        findViewById<ViewGroup>(android.R.id.content).getChildAt(0).applySystemBarsPadding()
 
         // Top bar
         btnClose = findViewById(R.id.btnClose)
