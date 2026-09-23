@@ -1,7 +1,7 @@
 # LibreCuts (fork) — memoria del proyecto
 
 Editor de video Android, FOSS, 100% local. Fork de `tharunbirla/LibreCuts` (remote `upstream`); el nuestro es `origin` (`MarkianUchiha/LibreCuts`).
-Distribución upstream: GitHub Releases, F-Droid, Obtainium (no Play Store).
+Distribución de upstream: GitHub Releases, F-Droid, Obtainium. **La nuestra es Google Play (canal principal) + GitHub Releases** (ver `SPEC.md` y `Decisiones.md` D13); eso obliga a mantener el `targetSdk` al día, hoy incumplido (M-236).
 
 ## Nivel SDD: Medio
 

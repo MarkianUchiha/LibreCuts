@@ -186,13 +186,36 @@ y sin lógica de servidor no hay backend que mantener, que asegurar ni que pagar
 alojamiento sí obligaría a publicar una versión**. Se mitiga usando un dominio propio estable
 desde el principio, no el subdominio que regale el proveedor.
 
-**Sobre F-Droid:** sus anti-features relevantes son *Non-Free Network Services* ("depender
-enteramente de un servicio de red propietario") y *Tethered Network Services* ("depender de un
-servicio imposible o difícil de reemplazar"). Servir archivos estáticos sin lógica cerrada no
-encaja en la primera. Para la segunda, F-Droid dice explícitamente que no aplica si la app trae
-"una opción de configuración sencilla que permita apuntar a otra instancia disponible y
-autoalojable": conviene dejar la dirección del catálogo configurable desde ajustes. Es barato
-hacerlo desde el principio y caro añadirlo después.
+**Dirección del catálogo configurable:** se recomendaba para evitar una anti-feature de F-Droid.
+Con F-Droid fuera de los canales (D13) esa razón desaparece, pero la recomendación se mantiene por
+una mejor: es lo único que permite **mudar el alojamiento sin publicar una versión de la app**, que
+es el punto débil de esta decisión. Sigue siendo barato hacerlo desde el principio y caro después.
+
+**Nota de Play:** el contenido del catálogo tiene que ser *datos*. Descargar código ejecutable que
+cambie el comportamiento de la app va contra las políticas de Google Play, así que un "efecto
+descargable" no puede ser un binario.
+
+---
+
+## D13 — Se distribuye por Google Play y GitHub Releases · 2026-09-22
+
+Play como canal principal; las releases de GitHub se mantienen a su lado. **F-Droid y Obtainium
+quedan fuera**: son los canales de upstream, no los nuestros.
+
+**Por qué:** en Play está la gente que hoy usa CapCut, que es contra quien se compara el producto.
+GitHub Releases ya funciona, no cuesta nada y cubre el hueco si la ficha de Play tarda o se cae.
+
+**Se pierde:** obligaciones que upstream no tenía. Mantener el `targetSdk` al día con el plazo de
+Play —hoy incumplido, ver M-236—, publicar una política de privacidad, llenar el formulario de
+*Data safety*, y aceptar que Play pueda revisar y retirar la ficha.
+
+**Lo que NO cuesta:** la licencia. El APK es GPLv3 de hecho (D3) y Play acepta software GPL; el
+conflicto conocido entre GPL y tiendas es con la App Store de Apple, que restringe la
+redistribución de un modo que la GPL no permite. Por eso VLC salió de ahí en 2011. No aplica aquí,
+así que no hay motivo de licencia para dejar `ffmpeg-kit-full-gpl` ni perder `libx264`.
+
+`[SIN VERIFICAR]`: si una cuenta de desarrollador personal nueva necesita una tanda de testers
+antes de publicar en producción. Conviene confirmarlo antes de comprometer una fecha de salida.
 
 ---
 

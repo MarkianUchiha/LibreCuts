@@ -67,7 +67,24 @@ Lo marcado **(fase 3)** todavía no existe; ver *Orden de trabajo*.
   serlo, es una decisión que se anota y cambia este documento.
 - **No procesa nada en un servidor.** Una función que necesite un modelo remoto no entra; si se
   puede correr en el dispositivo, sí.
-- **No Play Store.** La distribución es GitHub Releases, F-Droid y Obtainium, como upstream.
+- **No se distribuye por F-Droid.** Es el canal de upstream, no el nuestro (ver *Distribución*).
+
+## Distribución
+
+**Google Play como canal principal, y GitHub Releases junto a él.** Play es donde está la gente
+que hoy usa CapCut; las releases de GitHub ya funcionan, no cuestan nada y cubren el caso de que
+la ficha de Play se caiga o tarde en aprobarse.
+
+Lo que eso obliga y upstream no necesitaba:
+
+- Mantener el `targetSdk` al día con lo que Play exige en cada momento (M-236).
+- Publicar una política de privacidad y llenar el formulario de *Data safety*, aunque la respuesta
+  sea que no se recoge nada.
+- Que el contenido descargable del catálogo sean **datos**, nunca código ejecutable: descargar
+  código que cambie el comportamiento de la app va contra las políticas de Play.
+
+La licencia no estorba: el APK es GPLv3 de hecho (ver `Decisiones.md` D3) y Play acepta software
+GPL. El conflicto conocido entre GPL y tiendas es con la App Store de Apple, no con Play.
 
 ## Orden de trabajo
 
@@ -136,6 +153,8 @@ Del producto, no de una feature. Cada uno es comprobable:
   propia o cedida por quien lo aportó. La app no incluye ni descarga material de terceros sin ella.
 - **CA10 (fase 3).** Publicar una plantilla nueva no requiere compilar ni publicar una versión de
   la app.
+- **CA11.** La app cumple los requisitos vigentes de Play para poder subirse: `targetSdk` dentro
+  del plazo, política de privacidad publicada y *Data safety* declarado.
 
 ## Diff contra el estado actual
 
@@ -145,6 +164,8 @@ Del producto, no de una feature. Cada uno es comprobable:
 | Punto de partida de un proyecto | Siempre desde cero | También desde una plantilla (3b) |
 | Efectos y transiciones | Los que trae el APK | Los del APK más los descargables (3c) |
 | Uso de red | Ninguno | Solo para traer contenido del catálogo, sin cuenta |
+| Distribución | GitHub Releases, F-Droid y Obtainium (la de upstream) | Google Play como canal principal, más GitHub Releases |
+| `targetSdk` | 34, por debajo de lo que Play exige | Al día con el plazo vigente de Play (M-236) |
 | Preview vs export | Coinciden en secuencia, encuadre, máscara, espejo y transiciones (verificado); el resto sin documentar | CA2 para toda la app |
 | Proyecto guardado | Apunta a archivos de la caché; si se limpia, pierde los clips (M-229) | CA3 |
 | Idioma | Quedan textos en inglés (códigos de error, algunos diálogos) | CA5 |
@@ -154,5 +175,5 @@ Del producto, no de una feature. Cada uno es comprobable:
 ## Verificación
 
 Los tres comandos de `CLAUDE.md` (`assembleDebug`, `lintDebug`, `testDebugUnitTest`) más los
-tests instrumentados en la tablet (`node scripts/test-tablet.mjs`). Los criterios CA1 a CA10 se
+tests instrumentados en la tablet (`node scripts/test-tablet.mjs`). Los criterios CA1 a CA11 se
 comprueban a mano en el dispositivo, uno por release.
