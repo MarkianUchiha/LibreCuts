@@ -14,7 +14,10 @@ rutas, versiones y arquitectura vive en `CLAUDE.md`; aquí van las prohibiciones
 
 Fijo mientras no haya una decisión que lo cambie:
 
-- Kotlin 2.0.21, JDK 17, AGP 8.7.1, Gradle 8.9. `compileSdk`/`targetSdk` 34, `minSdk` 26.
+- Kotlin 2.0.21, JDK 17, AGP 8.7.1, Gradle 8.9. `minSdk` 26.
+- `compileSdk`/`targetSdk`: 34 hoy, **36 en cuanto se cierre M-236**. No es una versión que se
+  elija: la fija el plazo vigente de Google Play (ver `SPEC.md`, *Distribución*), así que sube
+  cuando Play lo exija y no se congela con el resto del stack.
 - Views tradicionales con XML. **No Jetpack Compose.**
 - ExoPlayer 2.19.1 legacy (`com.google.android.exoplayer2`), **no** AndroidX Media3.
 - `com.antonkarpenko:ffmpeg-kit-full-gpl:2.1.0` (FFmpeg 8.0).
