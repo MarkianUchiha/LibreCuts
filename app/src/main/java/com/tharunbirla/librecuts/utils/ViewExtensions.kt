@@ -4,6 +4,8 @@ import android.content.Context
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 
 /**
  * Checks whether haptic feedback is enabled in user settings.
@@ -48,6 +50,35 @@ fun View.setBounceClickListener(onClick: () -> Unit) {
             }
         }
         true
+    }
+}
+
+/**
+ * Aparta el contenido de las barras del sistema y del recorte de pantalla, sumando esos insets al
+ * padding que la vista ya traía. Con targetSdk 36 la app dibuja de borde a borde sin poder evitarlo
+ * (`specs/target-sdk-36.md`, regla 1).
+ *
+ * El padding original se toma una sola vez: los insets vuelven a llegar en cada giro y cada vez que
+ * una vista cambia de padre, y sumarlos al padding ya ajustado los iría acumulando.
+ *
+ * Los insets se devuelven sin consumir porque el editor detecta el teclado leyéndolos en la raíz.
+ */
+fun View.applySystemBarsPadding() {
+    val initialLeft = paddingLeft
+    val initialTop = paddingTop
+    val initialRight = paddingRight
+    val initialBottom = paddingBottom
+    ViewCompat.setOnApplyWindowInsetsListener(this) { view, insets ->
+        val bars = insets.getInsets(
+            WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+        )
+        view.setPadding(
+            initialLeft + bars.left,
+            initialTop + bars.top,
+            initialRight + bars.right,
+            initialBottom + bars.bottom
+        )
+        insets
     }
 }
 
