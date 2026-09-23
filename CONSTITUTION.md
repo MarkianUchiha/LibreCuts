@@ -1,6 +1,7 @@
 ---
 tipo: constitución
-estado: propuesta — pendiente de aprobación
+estado: aprobada
+aprobada: 2026-09-22
 actualizado: 2026-09-22
 ---
 
