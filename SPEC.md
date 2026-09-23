@@ -70,6 +70,15 @@ Lo marcado **(fase 3)** todavía no existe; ver *Orden de trabajo*.
   puede correr en el dispositivo, sí.
 - **No se distribuye por F-Droid.** Es el canal de upstream, no el nuestro (ver *Distribución*).
 
+## Pantallas grandes
+
+Las tablets y los plegables son un objetivo explícito, no un caso que se tolera: es hacia donde va
+el hardware. Una pantalla ancha, media pantalla o un plegable abriéndose tienen que dar una app
+usable, y a partir de Android 16 el sistema decide esos cambios sin pedir permiso a la app.
+
+El dispositivo de referencia para esto es la tablet del equipo (sw685dp). Que la app *aproveche*
+el espacio extra, y no solo que no se rompa, es trabajo de fase 3.
+
 ## Distribución
 
 **Google Play como canal principal, y GitHub Releases junto a él.** Play es donde está la gente

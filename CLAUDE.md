@@ -36,6 +36,7 @@ Fork **propio** (no se planea mandar PRs a upstream). En orden:
 - Título: `[APP-ANDROID][LibreCuts] ...` (el Linear es compartido con otros proyectos del usuario; el tag deja claro de cuál es).
 - Labels: `app-android` + `Bug` / `Feature` / `Improvement`.
 - Dispositivo de prueba: tablet Honor ELN-W09, Android 13 (API 33), MagicOS 7.1, arm64, ~3.7 GB RAM. Instalar con `./gradlew installDebug`.
+- Hay además un dispositivo con **Android 16** en el equipo, necesario para todo lo que dependa del comportamiento de API 35/36 (M-236). Faltan sus datos: modelo, tamaño de pantalla y ABI.
 
 ## Probar en la tablet (lecciones aprendidas)
 

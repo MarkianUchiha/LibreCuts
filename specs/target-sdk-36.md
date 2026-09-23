@@ -48,8 +48,9 @@ cambios que la afectan de verdad.
 
 ## Criterios de aceptación
 
-Los de dispositivo necesitan un emulador con Android 16: la tablet es Android 13 y ahí estos
-cambios no se manifiestan.
+Los de dispositivo se verifican en el teléfono con Android 16 del equipo: la tablet es Android 13
+y ahí estos cambios no se manifiestan. Los insets sí se pueden comprobar en la tablet forzando el
+dibujo de borde a borde.
 
 - **CA1.** La app compila y empaqueta con `targetSdk 36`, sin advertencias nuevas del compilador,
   y la suite instrumentada completa sigue en verde.
@@ -72,7 +73,7 @@ cambios no se manifiestan.
 | Orientación en pantalla grande | La decide la app | La decide el sistema; la app se adapta |
 | Barras del sistema | La app dibuja dentro de ellas | Dibuja por debajo y apartando sus controles |
 | Interfaz en horizontal | Herramientas cortadas (M-194) | Todas alcanzables (regla 2) |
-| Verificación | Solo en la tablet (Android 13) | Tablet + emulador con Android 16 |
+| Verificación | Solo en la tablet (Android 13) | Tablet (Android 13) + dispositivo con Android 16 |
 
 ## Notas de riesgo
 
