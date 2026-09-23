@@ -415,6 +415,9 @@ class DraggableImageOverlayView @JvmOverloads constructor(
             if (isGif && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
                 try {
                     val source = android.graphics.ImageDecoder.createSource(context.contentResolver, uri)
+                    // Decodificar en el hilo de UI congela la interfaz con GIFs grandes, pero
+                    // moverlo cambia el orden respecto de applyChromaKey en activate(). Pendiente en M-245.
+                    @SuppressLint("WrongThread")
                     val drawable = android.graphics.ImageDecoder.decodeDrawable(source)
                     imageView.setImageDrawable(drawable)
                     if (drawable is android.graphics.drawable.AnimatedImageDrawable) {

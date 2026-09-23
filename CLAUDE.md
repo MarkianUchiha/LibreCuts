@@ -59,18 +59,18 @@ Todo lo de este archivo se verificó contra el código el 2026-09-17. Lo que no 
 ```
 
 - JDK 17 obligatorio (CI usa Temurin 17).
-- `local.properties` (gitignored) necesita `sdk.dir` con **slashes normales**: `sdk.dir=C:/Users/.../Android/Sdk`. Con `\U` sin escapar Gradle falla con `Malformed \uxxxx encoding`.
+- `local.properties` (gitignored) necesita `sdk.dir` con **slashes normales y los dos puntos escapados**: `sdk.dir=C\:/Users/.../Android/Sdk`. Con `\U` sin escapar Gradle falla con `Malformed \uxxxx encoding`; con `C:` sin escapar, el lint de AGP 8.13 da error `PropertyEscape`.
 - El build de debug genera 3 APKs por ABI (`splits.abi`: armeabi-v7a, arm64-v8a, x86_64; sin universal).
 
 ## Versiones confirmadas
 
 | Pieza | Versión | Fuente |
 |---|---|---|
-| Gradle wrapper | 8.9 | `gradle/wrapper/gradle-wrapper.properties` |
-| AGP | 8.7.1 | `gradle/libs.versions.toml` |
+| Gradle wrapper | 8.13 | `gradle/wrapper/gradle-wrapper.properties` |
+| AGP | 8.13.2 (la 8.x más alta; la 9.x arrastra Gradle 9) | `gradle/libs.versions.toml` |
 | Kotlin (plugin y stdlib resuelta) | 2.0.21 | `libs.versions.toml` + `dependencies` |
 | kotlinx-coroutines | 1.8.1 (**transitiva**, no declarada) | `:app:dependencies` |
-| compileSdk / targetSdk / minSdk | 34 / 34 / 26 | `app/build.gradle` |
+| compileSdk / targetSdk / minSdk | 36 / 36 / 26 | `app/build.gradle` |
 | Java target | 17 | `app/build.gradle` |
 | ExoPlayer | **2.19.1 legacy** (`com.google.android.exoplayer2`), NO Media3 | `app/build.gradle` |
 | ffmpeg-kit | `com.antonkarpenko:ffmpeg-kit-full-gpl:2.1.0` → **FFmpeg 8.0** | POM de Maven Central + binario |
@@ -175,7 +175,7 @@ Se muestran en `ErrorDisplayActivity` vía extras `ERROR_CODE`, `ERROR_LOG`, `ER
 - `FFmpegKit.execute(String)` parte el comando por espacios respetando comillas; una ruta con `"` lo rompe. `executeWithArguments(Array)` sería más robusto.
 - `activeSessions` en `FFmpegRenderEngine` es `mutableListOf` (no thread-safe) y se toca desde varios hilos.
 - Tests: `app/src/test` solo tiene el template; `androidTest` tiene `KeyframeOpacityPreviewTest` (custom views). Ningún test cubre la construcción de comandos FFmpeg.
-- Build limpio pero con ~53 warnings de Kotlin (APIs deprecadas: `clipPath(Path, Region.Op)`, `versionCode`, `FLAG_IGNORE_GLOBAL_SETTING`).
+- Build limpio pero con 6 warnings de Kotlin en build limpio (5 de ExoPlayer 2 deprecado y un `Condition is always 'true'` en `VideoEditingActivity.kt:8643`), contados el 2026-09-23.
 - `minifyEnabled false` en release; `proguard-rules.pro` es el template.
 - Basura en la raíz: `test_exo.kt`, `test_ext.kt`, `test_heavy.kt` (no compilan ni se referencian). `src/images/` en la raíz son imágenes del README, no código.
 - Wiki upstream: no existe página "Tech Stack". Solo Home, User Guide, Developer Setup (desactualizada: habla de `app/libs/ffmpeg-kit.aar`) y Error Codes.

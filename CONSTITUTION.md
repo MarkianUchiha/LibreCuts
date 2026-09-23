@@ -14,8 +14,8 @@ rutas, versiones y arquitectura vive en `CLAUDE.md`; aquí van las prohibiciones
 
 Fijo mientras no haya una decisión que lo cambie:
 
-- Kotlin 2.0.21, JDK 17, AGP 8.7.1, Gradle 8.9. `minSdk` 26.
-- `compileSdk`/`targetSdk`: 34 hoy, **36 en cuanto se cierre M-236**. No es una versión que se
+- Kotlin 2.0.21, JDK 17, AGP 8.13.2, Gradle 8.13. `minSdk` 26.
+- `compileSdk`/`targetSdk`: 36 (M-236). No es una versión que se
   elija: la fija el plazo vigente de Google Play (ver `SPEC.md`, *Distribución*), así que sube
   cuando Play lo exija y no se congela con el resto del stack.
 - Views tradicionales con XML. **No Jetpack Compose.**
