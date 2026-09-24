@@ -64,6 +64,8 @@ class EdgeToEdgeActivitiesTest {
         launched.use { scenario ->
             scenario.onActivity { activity ->
                 val root = activity.findViewById<ViewGroup>(android.R.id.content).getChildAt(0)
+                // En Android 15+ la raíz ya trae los insets reales; sin barras queda el padding del layout.
+                ViewCompat.dispatchApplyWindowInsets(root, WindowInsetsCompat.Builder().build())
                 val before = padding(root)
 
                 ViewCompat.dispatchApplyWindowInsets(
