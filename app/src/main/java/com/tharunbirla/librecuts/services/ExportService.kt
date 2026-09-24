@@ -34,6 +34,10 @@ class ExportService : Service() {
     private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
     private lateinit var ffmpegEngine: FFmpegRenderEngine
 
+    // Lo escribe onTimeout en el hilo principal y lo lee la corrutina del export en IO.
+    @Volatile
+    private var stoppedBySystem = false
+
     companion object {
         const val ACTION_EXPORT_PROGRESS = "com.tharunbirla.librecuts.ACTION_EXPORT_PROGRESS"
         const val ACTION_EXPORT_SUCCESS = "com.tharunbirla.librecuts.ACTION_EXPORT_SUCCESS"
@@ -70,6 +74,9 @@ class ExportService : Service() {
 
         startForeground(NOTIFICATION_ID, buildNotification(0, "Exporting..."))
 
+        val tempFile = File(tempOutputPath)
+        val concatFile = concatFilePath?.let { File(it) }
+
         serviceScope.launch {
             try {
                 val result = ffmpegEngine.exportFinal(
@@ -80,9 +87,6 @@ class ExportService : Service() {
                         broadcastProgress(progress)
                     }
                 )
-
-                val tempFile = File(tempOutputPath)
-                val concatFile = concatFilePath?.let { File(it) }
 
                 when (result) {
                     is FFmpegRenderEngine.RenderResult.Success -> {
@@ -106,16 +110,17 @@ class ExportService : Service() {
                         broadcastFailure("Export cancelled")
                     }
                 }
-
-                // Cleanup temp files
+            } catch (e: Exception) {
+                // Si lo detuvo el sistema, onTimeout ya avisó; esto es solo la cancelación que sigue.
+                if (!stoppedBySystem) {
+                    Log.e(TAG, "Export exception", e)
+                    showCompletionNotification("Export Failed", e.message ?: "Unknown error", null)
+                    broadcastFailure(e.message ?: "Unknown error")
+                }
+            } finally {
+                // Aquí y no tras el when: un export cancelado también deja el temporal a medias.
                 if (tempFile.exists()) tempFile.delete()
                 if (concatFile?.exists() == true) concatFile.delete()
-
-            } catch (e: Exception) {
-                Log.e(TAG, "Export exception", e)
-                showCompletionNotification("Export Failed", e.message ?: "Unknown error", null)
-                broadcastFailure(e.message ?: "Unknown error")
-            } finally {
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
@@ -261,6 +266,20 @@ class ExportService : Service() {
             Log.e(TAG, "Error saving to default gallery: ${e.message}", e)
             null
         }
+    }
+
+    /**
+     * Android 15+ corta los servicios dataSync que suman 6 h en 24 y da unos segundos para parar;
+     * si no, tumba la app. Se avisa aquí y se para de inmediato: onDestroy cancela el job, y con él
+     * la sesión de FFmpeg, que exportFinal cancela cuando se cancela su corrutina.
+     */
+    override fun onTimeout(startId: Int, fgsType: Int) {
+        stoppedBySystem = true
+        val message = getString(R.string.export_stopped_time_limit)
+        showCompletionNotification(getString(R.string.export_stopped_title), message, null)
+        broadcastFailure(message)
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
     }
 
     override fun onDestroy() {

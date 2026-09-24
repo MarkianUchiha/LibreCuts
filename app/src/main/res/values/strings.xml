@@ -136,6 +136,8 @@
     <string name="toast_video_exported_to_gallery_succ">Video exported to Gallery successfully!</string>
     <string name="toast_failed_to_save_video_to_galler">Failed to save video to Gallery</string>
     <string name="toast_export_cancelled">Export cancelled</string>
+    <string name="export_stopped_title">Export stopped</string>
+    <string name="export_stopped_time_limit">Android stopped the export because LibreCuts reached its background time limit. Open the app and export again.</string>
     <string name="toast_export_quality_set_to_high">Export quality set to High</string>
     <string name="toast_export_quality_set_to_medium">Export quality set to Medium</string>
     <string name="toast_export_quality_set_to_low">Export quality set to Low</string>

@@ -145,6 +145,17 @@ class ProxyGenerationService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
     
+    /**
+     * Android 15+ corta los servicios dataSync que suman 6 h en 24 y tumba la app si no paran en
+     * unos segundos. Sin proxy el editor reproduce el original, así que basta con parar: onDestroy
+     * cancela el job, y el catch de la corrutina borra el proxy a medias.
+     */
+    override fun onTimeout(startId: Int, fgsType: Int) {
+        Log.w(TAG, "Proxy generation stopped by the system time limit")
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         serviceJob.cancel()
