@@ -148,6 +148,13 @@ class VideoEditingActivity : AppCompatActivity() {
     private var isImeVisible = false
     // Filas de botones de los toolbars partidas en varias líneas mientras están en el panel lateral.
     private val wrappedToolbarRows = mutableListOf<Pair<LinearLayout, com.tharunbirla.librecuts.customviews.WrapLayout>>()
+    // Los controles del dibujo viven en su propio panel a pantalla completa, fuera de toolOptionsHost;
+    // en el layout lateral pasan al panel derecho mientras se dibuja para no tapar el timeline (M-244).
+    private val handwritingControls by lazy { findViewById<LinearLayout>(R.id.handwritingControlsContainer) }
+    private val handwritingControlsHome by lazy {
+        val parent = handwritingControls.parent as ViewGroup
+        Triple(parent, parent.indexOfChild(handwritingControls), handwritingControls.layoutParams)
+    }
     private var pixelsPerMs: Float = 0.3f
     private var lastSnappedTargetMs: Long = -1L
     private enum class ZoomMode { FIT, MEDIUM, PRECISION }
@@ -793,6 +800,11 @@ class VideoEditingActivity : AppCompatActivity() {
             if (hostState != lastCanvasHost) {
                 lastCanvasHost = hostState
                 triggerCanvasLayoutUpdate()
+                // El video cambió de lugar (panel lateral, giro, ventana partida): el lienzo del dibujo
+                // tiene que seguirlo o los trazos y los toques quedan desfasados.
+                if (isHandwritingActive) {
+                    findViewById<HandwritingCanvasView>(R.id.handwritingCanvasView)?.setVideoRect(getVideoRect())
+                }
             }
         }
 
@@ -2895,6 +2907,25 @@ class VideoEditingActivity : AppCompatActivity() {
         handwritingPanel?.visibility = View.VISIBLE
 
         findViewById<android.widget.HorizontalScrollView>(R.id.editingControlsScroll)?.visibility = View.GONE
+        placeHandwritingControls(isSidePanelLayout())
+    }
+
+    /**
+     * En el layout lateral, los controles del dibujo van a toolOptionsHost (y con él al panel derecho);
+     * en otro caso vuelven a su lugar dentro de handwritingPanel. syncWorkspacePanels muestra el panel
+     * porque toolOptionsHost queda con un hijo visible.
+     */
+    private fun placeHandwritingControls(inSidePanel: Boolean) {
+        val (homeParent, homeIndex, homeParams) = handwritingControlsHome
+        if (inSidePanel) {
+            moveViewTo(
+                handwritingControls, toolOptionsHost,
+                LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            )
+        } else {
+            moveViewTo(handwritingControls, homeParent, homeParams, homeIndex)
+        }
+        syncWorkspacePanels()
     }
 
     private fun closeHandwritingMode() {
@@ -2904,6 +2935,8 @@ class VideoEditingActivity : AppCompatActivity() {
 
         canvasView?.visibility = View.GONE
         handwritingPanel?.visibility = View.GONE
+        // Sin esto seguirían visibles en el panel lateral después de cerrar el dibujo.
+        placeHandwritingControls(inSidePanel = false)
         findViewById<android.widget.HorizontalScrollView>(R.id.editingControlsScroll)?.visibility = View.VISIBLE
         setActiveToolButton(-1)
     }
@@ -7927,6 +7960,7 @@ class VideoEditingActivity : AppCompatActivity() {
         }
         controlsScroll.layoutParams = scrollParams
         setToolbarRowsWrapped(isSidePanelLayout(config))
+        if (isHandwritingActive) placeHandwritingControls(isSidePanelLayout(config))
         syncWorkspacePanels()
         updateTimelineVisibilityForEditing()
     }

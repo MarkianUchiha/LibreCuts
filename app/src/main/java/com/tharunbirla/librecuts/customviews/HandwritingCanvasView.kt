@@ -52,6 +52,21 @@ class HandwritingCanvasView @JvmOverloads constructor(
     var onStrokesChangedListener: (() -> Unit)? = null
 
     fun setVideoRect(rect: RectF) {
+        val old = videoRect
+        // Los trazos se guardan en coordenadas de la vista. Si el video cambió de lugar (panel lateral
+        // de la tablet, giro) se llevan al rect nuevo para que sigan sobre el mismo punto del video.
+        if (old != null && old != rect && old.width() > 0f && old.height() > 0f) {
+            val matrix = Matrix().apply { setRectToRect(old, rect, Matrix.ScaleToFit.FILL) }
+            val scale = (rect.width() / old.width() + rect.height() / old.height()) / 2f
+            val remap = { s: Stroke -> Stroke(Path().also { s.path.transform(matrix, it) }, s.color, s.strokeWidthPx * scale) }
+            strokes.replaceAll(remap)
+            redoStrokes.replaceAll(remap)
+            currentPath?.transform(matrix)
+            val point = floatArrayOf(currentX, currentY)
+            matrix.mapPoints(point)
+            currentX = point[0]
+            currentY = point[1]
+        }
         this.videoRect = RectF(rect)
         invalidate()
     }

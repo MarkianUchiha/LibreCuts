@@ -41,6 +41,10 @@ izquierda, como está previsto. Lo que falla es otra cosa:
    hijo directo de la raíz del layout, fuera de `toolOptionsHost`, así que `applyWorkspaceLayout`
    nunca lo mueve. Las 9 toolbars de las demás herramientas sí viven en `toolOptionsHost` y pasan
    al panel lateral. `[SIN VERIFICAR]` en la tablet que todas se vean bien ahí.
+   **Resuelto en M-244:** en el layout lateral, los controles del dibujo pasan a `toolOptionsHost`
+   (y con él al panel derecho) mientras se dibuja. Además, el lienzo recalcula dónde está el video
+   cada vez que cambia el tamaño del contenedor del player, y lleva ahí los trazos ya hechos; antes
+   el rect se calculaba una sola vez al abrir, así que girar con el dibujo abierto desfasaba el trazo.
 
 También se confirmó que la Activity **no se recrea** al girar (`configChanges` en
 `AndroidManifest.xml:66`), así que no hay estado que se pierda: lo que falta es recalcular lo que
