@@ -2,7 +2,7 @@
 feature: el editor se usa completo en horizontal
 issue: M-194
 estado: aprobada
-actualizado: 2026-09-22
+actualizado: 2026-09-23
 ---
 
 # El editor en horizontal
@@ -28,14 +28,19 @@ izquierda, como está previsto. Lo que falla es otra cosa:
    lo indica: no hay barra de desplazamiento ni degradado en el borde. El usuario concluye que las
    herramientas no están. Es el "menús se esconden" del issue, y es un problema de **descubrimiento,
    no de layout**.
-2. **La mitad izquierda de la zona del timeline queda vacía.** La pista arranca en el centro de la
-   pantalla, porque el desplazamiento del timeline conserva un relleno de media pantalla calculado
-   para vertical (`onTimelineWidthChanged`, `VideoEditingActivity.kt:6808-6824`). En horizontal eso
-   deja la mitad del ancho sin usar.
+2. ~~La mitad izquierda de la zona del timeline queda vacía.~~ **Corregido el 2026-09-23: no es un
+   fallo.** El cabezal está fijo al centro y el relleno es la mitad del ancho **actual** del timeline
+   (`onTimelineWidthChanged`, `VideoEditingActivity.kt:6808-6824`, recalculado al cambiar el ancho
+   desde `b016c8a`). En el segundo 0 no hay nada antes del cabezal, por eso la mitad izquierda se ve
+   vacía; al avanzar se llena. Comprobado en la tablet en horizontal: a los 6.9 s el "00:00" queda a
+   la izquierda del cabezal y la escala se conserva (~37 px/s).
 3. **El panel de opciones de una herramienta sigue apareciendo abajo.** Con la herramienta de
    dibujo abierta, su paleta ocupa el ancho completo en la parte inferior y comprime el timeline
    contra ella, en vez de usar el panel lateral derecho que el modo horizontal prevé.
-   `[SIN VERIFICAR]` si las demás herramientas se comportan igual: solo se probó la de dibujo.
+   Contra el código (2026-09-23): el dibujo es un caso aparte. Su panel (`handwritingPanel`) es un
+   hijo directo de la raíz del layout, fuera de `toolOptionsHost`, así que `applyWorkspaceLayout`
+   nunca lo mueve. Las 9 toolbars de las demás herramientas sí viven en `toolOptionsHost` y pasan
+   al panel lateral. `[SIN VERIFICAR]` en la tablet que todas se vean bien ahí.
 
 También se confirmó que la Activity **no se recrea** al girar (`configChanges` en
 `AndroidManifest.xml:66`), así que no hay estado que se pierda: lo que falta es recalcular lo que
@@ -44,7 +49,8 @@ depende del tamaño.
 ## Reglas
 
 1. **Toda herramienta es alcanzable.** Si una lista de herramientas no cabe, se ve que continúa.
-2. **El timeline empieza donde empieza su zona.** Ningún tamaño de ventana deja media pista vacía.
+2. **El 0 del timeline queda bajo el cabezal con cualquier ancho de ventana.** Girar o cambiar el
+   tamaño no desplaza la pista respecto del cabezal.
 3. **Las opciones de una herramienta no tapan el timeline.** Con una herramienta abierta se siguen
    viendo la pista y el cabezal de reproducción.
 4. **Girar no pierde nada.** El clip seleccionado, la posición del cabezal, el encuadre y el modo
@@ -68,7 +74,7 @@ configurada como horizontal; CA3 a CA5 en la tablet, girándola.
 - **CA1.** Con la altura disponible de una pantalla horizontal, la lista de herramientas muestra
   una señal visible de que continúa más allá del borde.
 - **CA2.** Tras un cambio de tamaño de la ventana, el relleno inicial del timeline corresponde a
-  la mitad del **ancho nuevo**, no del anterior.
+  la mitad del **ancho nuevo**, no del anterior. Ya se cumple (ver "Qué pasa hoy", punto 2).
 - **CA3.** (Tablet.) En horizontal, cada herramienta de la lista se puede alcanzar y pulsar.
 - **CA4.** (Tablet.) Con una herramienta abierta en horizontal, la pista del timeline y el cabezal
   siguen visibles.
@@ -82,6 +88,6 @@ configurada como horizontal; CA3 a CA5 en la tablet, girándola.
 | Aspecto | Hoy | Deseado |
 |---|---|---|
 | Lista de herramientas en horizontal | Se desplaza, pero nada lo indica | Se ve que continúa (regla 1) |
-| Inicio del timeline | Relleno de media pantalla en vertical, media pantalla vacía en horizontal | Relleno recalculado con el ancho actual (regla 2) |
+| Inicio del timeline | Relleno recalculado con el ancho actual; el 0 bajo el cabezal | Sin cambios (regla 2 ya se cumple) |
 | Opciones de herramienta | Abajo, comprimiendo el timeline | Sin tapar la pista (regla 3) |
 | Estado al girar | No se pierde (la Activity no se recrea) | Igual, verificado por CA5 |
