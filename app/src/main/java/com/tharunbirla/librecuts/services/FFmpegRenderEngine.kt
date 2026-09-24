@@ -9,6 +9,7 @@ import com.antonkarpenko.ffmpegkit.FFmpegKitConfig
 import com.antonkarpenko.ffmpegkit.FFmpegSession
 import com.antonkarpenko.ffmpegkit.Level
 import com.antonkarpenko.ffmpegkit.ReturnCode
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -134,7 +135,12 @@ class FFmpegRenderEngine(private val context: Context) {
         return withContext(Dispatchers.IO) {
             try {
                 Log.d(TAG, "Executing FFmpeg command: $command")
-                val session = FFmpegKit.execute(command)
+                // Asíncrono para poder cancelar: FFmpegKit.execute bloquea y seguía corriendo aunque
+                // se cancelara la corrutina (p. ej. cuando Android corta un servicio por tiempo, M-241).
+                val session = suspendCancellableCoroutine<FFmpegSession> { cont ->
+                    val asyncSession = FFmpegKit.executeAsync(command) { done -> cont.resume(done) }
+                    cont.invokeOnCancellation { FFmpegKit.cancel(asyncSession.sessionId) }
+                }
                 activeSessions.add(session)
 
                 val returnCode = session.getReturnCode()
@@ -165,6 +171,9 @@ class FFmpegRenderEngine(private val context: Context) {
                     Log.e(TAG, "FFmpeg error:\n$diagnosticLog")
                     RenderResult.Failure(error = diagnosticLog, session = session)
                 }
+            } catch (e: CancellationException) {
+                // Una cancelación no es un fallo de FFmpeg: tragarla aquí dejaría seguir al que llamó.
+                throw e
             } catch (e: Exception) {
                 Log.e(TAG, "Exception during FFmpeg execution: ${e.message}", e)
                 val diagnosticLog = createDiagnosticReport(context, command, null, null, null, e)
