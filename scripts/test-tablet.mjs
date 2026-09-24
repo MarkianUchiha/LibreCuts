@@ -9,6 +9,7 @@
  *   node scripts/test-tablet.mjs                          # toda la suite
  *   node scripts/test-tablet.mjs TransitionPreviewGeometryTest   # una clase (basta el nombre)
  *   node scripts/test-tablet.mjs --skip-build             # reusa los APK ya compilados
+ *   ANDROID_SERIAL=<serial> node scripts/test-tablet.mjs  # con más de un dispositivo conectado
  */
 
 import { execFileSync, spawnSync } from 'node:child_process'
@@ -49,8 +50,11 @@ const devices = sh(adb, ['devices'])
   .split('\n')
   .slice(1)
   .filter((l) => l.trim().endsWith('\tdevice'))
+// Con la tablet y el teléfono conectados, ANDROID_SERIAL elige uno; adb lo lee solo en cada comando.
+const serial = process.env.ANDROID_SERIAL
+if (serial && !devices.some((l) => l.startsWith(`${serial}\t`))) fail(`ANDROID_SERIAL=${serial} no está conectado`)
 if (devices.length === 0) fail('no hay dispositivo conectado (¿depuración USB activa?)')
-if (devices.length > 1) fail(`hay ${devices.length} dispositivos conectados; deja solo uno`)
+if (devices.length > 1 && !serial) fail(`hay ${devices.length} dispositivos conectados; elige uno con ANDROID_SERIAL=<serial>`)
 
 if (!skipBuild) {
   console.log('▸ compilando app y tests...')
