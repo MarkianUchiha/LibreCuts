@@ -149,6 +149,8 @@
             android:layout_marginBottom="8dp"
             android:background="@color/floatingPanelBackground"
             android:scrollbars="none"
+            android:requiresFadingEdge="vertical"
+            android:fadingEdgeLength="32dp"
             android:visibility="gone" />
 
         <!-- Video Player Frame Container -->
