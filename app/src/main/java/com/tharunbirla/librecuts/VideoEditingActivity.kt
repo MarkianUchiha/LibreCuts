@@ -17,6 +17,9 @@ import com.tharunbirla.librecuts.utils.setBounceClickListener
 import com.tharunbirla.librecuts.utils.performHapticLight
 import com.tharunbirla.librecuts.utils.performHapticClick
 import com.tharunbirla.librecuts.utils.performAppHapticFeedback
+import com.tharunbirla.librecuts.utils.TimelineFit
+import com.tharunbirla.librecuts.utils.showFitted
+import com.tharunbirla.librecuts.utils.timelineFitFor
 import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
@@ -151,6 +154,12 @@ class VideoEditingActivity : AppCompatActivity() {
     // Los controles del dibujo viven en su propio panel a pantalla completa, fuera de toolOptionsHost;
     // en el layout lateral pasan al panel derecho mientras se dibuja para no tapar el timeline (M-244).
     private val handwritingControls by lazy { findViewById<LinearLayout>(R.id.handwritingControlsContainer) }
+    // Columna principal del editor (barra superior, preview, timeline, herramientas); su alto es el de
+    // la ventana útil. En una ventana baja el timeline cede alto para que el preview se vea (M-254).
+    private val mainColumn by lazy {
+        (findViewById<ViewGroup>(android.R.id.content).getChildAt(0) as ViewGroup).getChildAt(0) as ViewGroup
+    }
+    private var timelineFit: TimelineFit = TimelineFit.Full
     private val handwritingControlsHome by lazy {
         val parent = handwritingControls.parent as ViewGroup
         Triple(parent, parent.indexOfChild(handwritingControls), handwritingControls.layoutParams)
@@ -397,7 +406,7 @@ class VideoEditingActivity : AppCompatActivity() {
         }
 
         refreshFontList()
-        bottomSheet.show()
+        bottomSheet.showFitted(isLowWindow())
     }
 
     private class FontManagerAdapter(
@@ -864,6 +873,18 @@ class VideoEditingActivity : AppCompatActivity() {
                 if (!imeVisible) draggableTextOverlay?.onKeyboardHidden()
             }
             syncWorkspacePanels()
+        }
+
+        // Girar, partir la pantalla, el teclado o abrir una herramienta cambian el alto disponible.
+        // Solo se reacomoda si cambió la ventana o lo que no es timeline: mover el timeline no cambia
+        // ninguno de los dos, así que no hay ciclo de layouts. Se difiere para no cambiarlo a media pasada.
+        var lastFitInputs: Pair<Int, Int>? = null
+        mainColumn.viewTreeObserver.addOnGlobalLayoutListener {
+            val inputs = mainColumn.height to timelineChromePx()
+            if (inputs != lastFitInputs) {
+                lastFitInputs = inputs
+                mainColumn.post { applyTimelineFit() }
+            }
         }
 
         timelineVerticalScroll.setOnScrollChangeListener { _, _, _, _, _ ->
@@ -3315,7 +3336,7 @@ class VideoEditingActivity : AppCompatActivity() {
             setActiveToolButton(-1)
         }
 
-        bottomSheet.show()
+        bottomSheet.showFitted(isLowWindow())
     }
 
     private fun subtitlesAction() {
@@ -3942,7 +3963,7 @@ class VideoEditingActivity : AppCompatActivity() {
             bottomSheet.dismiss()
         }
 
-        bottomSheet.show()
+        bottomSheet.showFitted(isLowWindow())
     }
 
     private fun getPresetCropBounds(aspectRatio: String): android.graphics.RectF {
@@ -5150,7 +5171,7 @@ class VideoEditingActivity : AppCompatActivity() {
         }
 
         bottomSheetDialog.setContentView(sheetView)
-        bottomSheetDialog.show()
+        bottomSheetDialog.showFitted(isLowWindow())
     }
 
     private fun exportVideoFile(uri: Uri) {
@@ -7035,7 +7056,7 @@ class VideoEditingActivity : AppCompatActivity() {
             bottomSheet.dismiss()
         }
 
-        bottomSheet.show()
+        bottomSheet.showFitted(isLowWindow())
     }
 
     private fun updateVideoMuteButtonState(toolbar: View, index: Int) {
@@ -7149,7 +7170,7 @@ class VideoEditingActivity : AppCompatActivity() {
             bottomSheet.dismiss()
         }
 
-        bottomSheet.show()
+        bottomSheet.showFitted(isLowWindow())
     }
 
     private fun showTransitionDialog(transitionIndex: Int) {
@@ -7324,7 +7345,7 @@ class VideoEditingActivity : AppCompatActivity() {
             bottomSheet.dismiss()
         }
 
-        bottomSheet.show()
+        bottomSheet.showFitted(isLowWindow())
     }
 
     private fun setupCustomSeeker() {
@@ -7642,6 +7663,8 @@ class VideoEditingActivity : AppCompatActivity() {
             lpTimeline.height = 0
             lpTimeline.weight = 1.0f
             timelineContainer.layoutParams = lpTimeline
+            // En una ventana baja el timeline estaba colapsado: expandir es la forma de desplegarlo.
+            updateTimelineVisibilityForEditing()
         } else {
             btnExpandTimeline.setImageResource(R.drawable.ic_expand_24)
             pipPlayerContainer.visibility = View.GONE
@@ -7657,6 +7680,10 @@ class VideoEditingActivity : AppCompatActivity() {
             lpTimeline.height = 140.dpToPx()
             lpTimeline.weight = 0f
             timelineContainer.layoutParams = lpTimeline
+            // Al volver, el alto lo decide la ventana (completo, compacto o colapsado), no un 140 fijo.
+            timelineFit = TimelineFit.Full
+            applyTimelineFit()
+            updateTimelineVisibilityForEditing()
         }
     }
 
@@ -8040,10 +8067,66 @@ class VideoEditingActivity : AppCompatActivity() {
     // baja a ~600 px y el preview quedaría ilegible); cerrado, se ve para ajustar el clip (M-200).
     private fun updateTimelineVisibilityForEditing() {
         val editing = isTextEditingActive || isSubtitlesEditingActive
-        val hide = editing && (!isSidePanelLayout() || isImeVisible)
-        val visibility = if (hide) View.GONE else View.VISIBLE
+        val hideForEditing = editing && (!isSidePanelLayout() || isImeVisible)
+        // En una ventana baja el timeline colapsado se despliega con btnExpandTimeline (modo expandido).
+        val hideForSpace = timelineFit == TimelineFit.Collapsed && !isTimelineExpanded
+        val visibility = if (hideForEditing || hideForSpace) View.GONE else View.VISIBLE
         findViewById<View>(R.id.timelineContainer)?.visibility = visibility
         findViewById<View>(R.id.timelineDivider)?.visibility = visibility
+    }
+
+    private fun isLowWindow() = timelineFit != TimelineFit.Full
+
+    /**
+     * Alto de todo lo de la columna que no es preview ni timeline. Se mide el alto natural de cada
+     * franja: en una ventana baja las de abajo salen recortadas y su alto en pantalla engañaría.
+     */
+    private fun timelineChromePx(): Int {
+        val column = mainColumn
+        val seeker = findViewById<ViewGroup>(R.id.seekerContainer)
+        var chrome = naturalHeight(column.getChildAt(0), column.width) +
+            seeker.paddingTop + seeker.paddingBottom +
+            naturalHeight(seeker.getChildAt(0), column.width) +
+            naturalHeight(findViewById(R.id.timelineDivider), column.width, ignoreVisibility = true) +
+            naturalHeight(controlsScroll, column.width)
+        // En el layout lateral las opciones de herramienta van al panel derecho, no a la columna.
+        if (toolOptionsHost.parent === column) chrome += naturalHeight(toolOptionsHost, column.width)
+        return chrome
+    }
+
+    private fun naturalHeight(view: View, widthPx: Int, ignoreVisibility: Boolean = false): Int {
+        if (!ignoreVisibility && view.visibility == View.GONE) return 0
+        view.measure(
+            View.MeasureSpec.makeMeasureSpec(widthPx, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+        )
+        val lp = view.layoutParams as? ViewGroup.MarginLayoutParams
+        val natural = view.measuredHeight + (lp?.topMargin ?: 0) + (lp?.bottomMargin ?: 0)
+        // El padre acomoda con la última medida de cada hijo aunque no lo vuelva a medir: se restaura
+        // la del tamaño en pantalla para que un layout posterior no use el alto natural.
+        if (view.isLaidOut) {
+            view.measure(
+                View.MeasureSpec.makeMeasureSpec(view.width, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(view.height, View.MeasureSpec.EXACTLY)
+            )
+        }
+        return natural
+    }
+
+    /** Reparte el alto: el preview conserva el 40 % y el timeline se compacta o se colapsa (M-254). */
+    private fun applyTimelineFit() {
+        // Expandido lo pidió el usuario: manda sobre el ajuste hasta que lo cierre.
+        if (isTimelineExpanded || mainColumn.height <= 0) return
+        val fit = timelineFitFor(mainColumn.height, timelineChromePx(), 140.dpToPx(), 80.dpToPx())
+        if (fit == timelineFit) return
+        timelineFit = fit
+        val lp = timelineContainer.layoutParams as LinearLayout.LayoutParams
+        val height = if (fit is TimelineFit.Compact) fit.timelinePx else 140.dpToPx()
+        if (lp.height != height) {
+            lp.height = height
+            timelineContainer.layoutParams = lp
+        }
+        updateTimelineVisibilityForEditing()
     }
 
     override fun onDestroy() {
@@ -8340,7 +8423,7 @@ class VideoEditingActivity : AppCompatActivity() {
             bottomSheet.dismiss()
         }
 
-        bottomSheet.show()
+        bottomSheet.showFitted(isLowWindow())
     }
 
     private fun showQuitConfirmationDialog() {
@@ -8368,7 +8451,7 @@ class VideoEditingActivity : AppCompatActivity() {
         }
 
         bottomSheet.setContentView(view)
-        bottomSheet.show()
+        bottomSheet.showFitted(isLowWindow())
     }
 
     private fun getSnapTargetsMs(): List<Long> {
@@ -8474,7 +8557,7 @@ class VideoEditingActivity : AppCompatActivity() {
                 } catch(e: Exception){}
                 updatePreview()
                 draggableImageOverlay?.isColorPickingMode = false
-                bottomSheet.show()
+                bottomSheet.showFitted(isLowWindow())
             }
         }
         
@@ -8506,7 +8589,7 @@ class VideoEditingActivity : AppCompatActivity() {
             }
             draggableImageOverlay?.isColorPickingMode = false
         }
-        bottomSheet.show()
+        bottomSheet.showFitted(isLowWindow())
     }
 
     private fun showCustomColorPicker(initialHex: String, onColorPicked: (String) -> Unit) {
@@ -8534,7 +8617,7 @@ class VideoEditingActivity : AppCompatActivity() {
             onColorPicked(hex)
             bottomSheet.dismiss()
         }
-        bottomSheet.show()
+        bottomSheet.showFitted(isLowWindow())
     }
 
     private fun commitActiveEditsIfAny() {
@@ -9407,7 +9490,7 @@ class VideoEditingActivity : AppCompatActivity() {
         bottomSheet.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND)
         bottomSheet.window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL)
 
-        bottomSheet.show()
+        bottomSheet.showFitted(isLowWindow())
 
         val touchOutside = bottomSheet.findViewById<View>(com.google.android.material.R.id.touch_outside)
         touchOutside?.setOnTouchListener { _, event ->

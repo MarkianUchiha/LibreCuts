@@ -6,6 +6,8 @@ import android.view.MotionEvent
 import android.view.View
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.google.android.material.bottomsheet.BottomSheetBehavior
+import com.google.android.material.bottomsheet.BottomSheetDialog
 
 /**
  * Checks whether haptic feedback is enabled in user settings.
@@ -80,6 +82,18 @@ fun View.applySystemBarsPadding() {
         )
         insets
     }
+}
+
+/**
+ * Muestra el sheet; en una ventana baja abre expandido para que su botón de confirmar se vea sin
+ * arrastrarlo (M-254, `specs/ventana-baja.md` regla 4). Con alto suficiente se comporta como siempre.
+ */
+fun BottomSheetDialog.showFitted(lowWindow: Boolean) {
+    if (lowWindow) {
+        behavior.state = BottomSheetBehavior.STATE_EXPANDED
+        behavior.skipCollapsed = true
+    }
+    show()
 }
 
 /**

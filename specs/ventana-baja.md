@@ -82,10 +82,16 @@ Tomadas el 2026-09-23; ver `Decisiones.md` D14.
      Ya existe un botón para lo contrario (`toggleTimelineExpandedMode`, l.7624, oculta el preview
      para agrandar el timeline); el control nuevo puede seguir su mismo estilo.
 
-   Lo que le queda al timeline (hoy 216dp): teléfono horizontal 376 − 150 − 56 − 88 = **~82dp**,
-   media pantalla 415 − 166 − 56 − 88 = **~105dp**. Un timeline compacto (controles de 44dp + regla +
-   una pista) ronda los 100dp: la media pantalla queda en compacto y el teléfono horizontal en
-   colapsado.
+   **Medido al implementar (2026-09-23):** lo fijo sin preview ni timeline suma ~220dp (barra superior
+   56 + fila de controles 64 + padding 8 + divisor 20 + herramientas 88, variable según la herramienta
+   abierta) y el timeline mínimo usable es de 80dp (regla 28 + pista principal 52). Con el 40 %, el
+   timeline completo cabe desde ~600dp de alto, el compacto entre ~500 y ~600dp, y por debajo se
+   colapsa. **El teléfono horizontal (376dp) y la media pantalla (415dp) quedan colapsados**, no en
+   compacto como estimaba la versión anterior de esta spec.
+
+   El colapsado se despliega con `btnExpandTimeline` (el modo expandido que ya existía: timeline a todo
+   el alto y el video en el mini-player flotante). En media pantalla el mini-player (180×115dp) cae
+   sobre la pista; se puede arrastrar, pero tapa el timeline al desplegarlo. Pendiente de decidir.
 3. **Umbral: cuando el preview quedaría por debajo del mínimo**, medido con el alto real de la
    ventana y no con la orientación.
 
