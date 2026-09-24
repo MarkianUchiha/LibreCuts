@@ -31,6 +31,7 @@ import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.LinearLayout
+import android.widget.RelativeLayout
 import android.widget.Spinner
 import android.widget.TextView
 import android.view.inputmethod.InputMethodManager
@@ -7651,6 +7652,7 @@ class VideoEditingActivity : AppCompatActivity() {
             // Se oculta la fila completa (no solo el preview): si no, su weight=1 seguiría
             // reservando espacio y el timeline no podría expandirse.
             findViewById<View>(R.id.workspaceRow).visibility = View.GONE
+            placePipPlayer(lowWindow = isLowWindow())
             pipPlayerContainer.visibility = View.VISIBLE
             reparentCanvasContainer(pipPlayerContainer)
 
@@ -7684,6 +7686,38 @@ class VideoEditingActivity : AppCompatActivity() {
             timelineFit = TimelineFit.Full
             applyTimelineFit()
             updateTimelineVisibilityForEditing()
+            placePipPlayer(lowWindow = false)
+        }
+    }
+
+    // Lugar original del mini-player (180×115dp arriba a la derecha), para restaurarlo.
+    private val pipHomeParams by lazy {
+        RelativeLayout.LayoutParams(pipPlayerContainer.layoutParams as RelativeLayout.LayoutParams)
+    }
+    private var pipPlacedLow = false
+
+    /**
+     * En una ventana baja, arriba a la derecha el mini-player cae sobre las pistas del timeline
+     * desplegado: se achica y baja al espacio libre sobre la barra de herramientas (M-254).
+     */
+    private fun placePipPlayer(lowWindow: Boolean) {
+        val home = pipHomeParams
+        if (lowWindow == pipPlacedLow) return
+        pipPlacedLow = lowWindow
+        // Un arrastre anterior se guarda como traslación; se descarta para que el lugar sea el previsto.
+        pipPlayerContainer.translationX = 0f
+        pipPlayerContainer.translationY = 0f
+        pipPlayerContainer.layoutParams = if (lowWindow) {
+            val bottomBars = controlsScroll.height +
+                (if (toolOptionsHost.parent === mainColumn) toolOptionsHost.height else 0)
+            RelativeLayout.LayoutParams(128.dpToPx(), 72.dpToPx()).apply {
+                addRule(RelativeLayout.ALIGN_PARENT_END)
+                addRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
+                marginEnd = 16.dpToPx()
+                bottomMargin = bottomBars + 8.dpToPx()
+            }
+        } else {
+            RelativeLayout.LayoutParams(home)
         }
     }
 

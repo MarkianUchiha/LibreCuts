@@ -90,8 +90,9 @@ Tomadas el 2026-09-23; ver `Decisiones.md` D14.
    compacto como estimaba la versión anterior de esta spec.
 
    El colapsado se despliega con `btnExpandTimeline` (el modo expandido que ya existía: timeline a todo
-   el alto y el video en el mini-player flotante). En media pantalla el mini-player (180×115dp) cae
-   sobre la pista; se puede arrastrar, pero tapa el timeline al desplegarlo. Pendiente de decidir.
+   el alto y el video en el mini-player flotante). En una ventana baja el mini-player baja a 128×72dp
+   y se coloca abajo a la derecha, sobre la barra de herramientas: arriba a la derecha (180×115dp, su
+   lugar de siempre) tapaba la pista en media pantalla. Con alto suficiente conserva su lugar.
 3. **Umbral: cuando el preview quedaría por debajo del mínimo**, medido con el alto real de la
    ventana y no con la orientación.
 
