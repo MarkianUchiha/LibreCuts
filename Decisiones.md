@@ -219,6 +219,22 @@ antes de publicar en producción. Conviene confirmarlo antes de comprometer una 
 
 ---
 
+## D14 — El editor se adapta al alto de la ventana; no se fija la orientación · 2026-09-23
+
+En un teléfono la app puede girar y dividirse la pantalla. Cuando la ventana es baja, el preview
+conserva el 40 % del alto y lo que cede es el timeline: primero se compacta y, si no alcanza, se
+colapsa detrás de un control. Detalle en `specs/ventana-baja.md` (M-254).
+
+**Por qué:** fijar la vertical en teléfonos arreglaba el giro con unas líneas, pero no la pantalla
+dividida, que produce el mismo colapso (el preview queda en 0 de alto con 415dp de ventana). El
+problema es el alto disponible, no la orientación. Además, en API 36 el sistema ya ignora la
+orientación fija en pantallas de 600dp o más.
+
+**Se pierde:** simplicidad. Es trabajo dentro de `VideoEditingActivity`, que ya decide el acomodo en
+código porque la Activity no se recrea al girar, y hay un modo más que probar en cada cambio del editor.
+
+---
+
 ## Decisiones abiertas
 
 Anotadas para que no se pierdan; no están tomadas.

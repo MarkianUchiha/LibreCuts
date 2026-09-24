@@ -1,7 +1,7 @@
 ---
 feature: el editor se puede usar en una ventana baja
 issue: M-254
-estado: propuesta
+estado: aprobada
 actualizado: 2026-09-23
 ---
 
@@ -49,10 +49,9 @@ cede alto.
 
 ## Reglas
 
-1. **El video siempre se ve.** En cualquier ventana, el preview conserva un alto mínimo (ver
-   Decisiones pendientes, 1).
+1. **El video siempre se ve.** En cualquier ventana, el preview conserva un alto mínimo (Decisiones, 1).
 2. **Lo que cede es el timeline.** Cuando falta alto, primero se compacta el timeline, y en el caso
-   extremo se colapsa detrás de un control visible para desplegarlo (ver Decisiones pendientes, 2).
+   extremo se colapsa detrás de un control visible para desplegarlo (Decisiones, 2).
    La barra superior y la de herramientas no se ocultan.
 3. **Nada queda inalcanzable.** Toda herramienta, el botón de exportar y el cabezal siguen
    accesibles, aunque sea desplazándose o desplegando.
@@ -70,24 +69,25 @@ cede alto.
 - Cambiar el layout lateral de la tablet (`specs/rotacion-horizontal.md`).
 - Ventanas angostas (menos ancho): hoy no hay un problema observado ahí.
 
-## Decisiones pendientes (antes de aprobar)
+## Decisiones
 
-1. **Alto mínimo del preview.** Propuesta: **el 40 % del alto de la ventana**. En el teléfono
-   horizontal serían ~150dp, y en media pantalla ~166dp. Una alternativa es un mínimo fijo en dp,
-   pero no escala con la ventana.
-2. **Cómo cede el timeline.** Propuesta, en dos escalones:
+Tomadas el 2026-09-23; ver `Decisiones.md` D14.
+
+1. **Alto mínimo del preview: el 40 % del alto de la ventana.** ~150dp en el teléfono horizontal,
+   ~166dp en media pantalla.
+2. **El timeline cede en dos escalones.**
    - **Compacto:** menos alto de pista y controles de reproducción en una fila más baja, si con eso
-     alcanza el mínimo.
+     el preview alcanza el mínimo.
    - **Colapsado:** si no alcanza, el timeline se oculta y queda un control visible para desplegarlo.
      Ya existe un botón para lo contrario (`toggleTimelineExpandedMode`, l.7624, oculta el preview
      para agrandar el timeline); el control nuevo puede seguir su mismo estilo.
 
-   Con la propuesta 1, lo que le queda al timeline (hoy 216dp) es: teléfono horizontal
-   376 − 150 − 56 − 88 = **~82dp**, y media pantalla 415 − 166 − 56 − 88 = **~105dp**. Un timeline
-   compacto (controles de 44dp + regla + una pista) ronda los 100dp: alcanza en media pantalla, pero
-   en el teléfono horizontal tocaría el escalón de colapsado.
-3. **Umbral.** A partir de qué alto se considera "ventana baja": propuesta, cuando el preview
-   quedaría por debajo del mínimo de la decisión 1, medido con el alto real y no con la orientación.
+   Lo que le queda al timeline (hoy 216dp): teléfono horizontal 376 − 150 − 56 − 88 = **~82dp**,
+   media pantalla 415 − 166 − 56 − 88 = **~105dp**. Un timeline compacto (controles de 44dp + regla +
+   una pista) ronda los 100dp: la media pantalla queda en compacto y el teléfono horizontal en
+   colapsado.
+3. **Umbral: cuando el preview quedaría por debajo del mínimo**, medido con el alto real de la
+   ventana y no con la orientación.
 
 ## Criterios de aceptación
 

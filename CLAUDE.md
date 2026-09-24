@@ -11,11 +11,11 @@ Artefactos que corresponden a Medio, todos en la raíz salvo las specs de featur
 
 | Archivo | Qué es | Estado |
 |---|---|---|
-| `SPEC.md` | Producto: qué queremos que sea la app | Propuesta, pendiente de aprobación |
+| `SPEC.md` | Producto: qué queremos que sea la app | Aprobada (`e5e7b32`) |
 | `SPEC-ACTUAL.md` | Descriptiva: qué hace hoy | En progreso (secuencia, congelar, máscara, transiciones) |
-| `CONSTITUTION.md` | Stack, prohibiciones, convenciones | Propuesta, pendiente de aprobación |
-| `Decisiones.md` | Una entrada por decisión que costaría volver a tomar | D1–D8 más las abiertas |
-| `specs/<feature>.md` | Una por feature | `congelar-cuadro`, `mascara-edicion`, `transicion-preview` |
+| `CONSTITUTION.md` | Stack, prohibiciones, convenciones | Aprobada (`e5e7b32`) |
+| `Decisiones.md` | Una entrada por decisión que costaría volver a tomar | D1–D14 más las abiertas |
+| `specs/<feature>.md` | Una por feature | `congelar-cuadro`, `mascara-edicion`, `transicion-preview`, `target-sdk-36`, `rotacion-horizontal`, `ventana-baja` |
 
 Tareas como issues de Linear (ver Seguimiento). Checkpoint humano entre spec y plan.
 
