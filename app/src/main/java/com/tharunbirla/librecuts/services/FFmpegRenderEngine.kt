@@ -326,6 +326,9 @@ class FFmpegRenderEngine(private val context: Context) {
                     Log.e(TAG, "FFmpeg error:\n$diagnosticLog")
                     RenderResult.Failure(error = diagnosticLog, session = session)
                 }
+            } catch (e: CancellationException) {
+                // Igual que en executeCommand: cancelar el export no es un fallo de FFmpeg.
+                throw e
             } catch (e: Exception) {
                 Log.e(TAG, "Exception during FFmpeg execution: ${e.message}", e)
                 val diagnosticLog = createDiagnosticReport(context, ffmpegCommand, null, null, null, e)

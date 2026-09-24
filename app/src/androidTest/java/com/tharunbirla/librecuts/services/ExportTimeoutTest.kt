@@ -53,6 +53,7 @@ class ExportTimeoutTest {
     @Test
     fun anExportStoppedByTheSystemTellsTheUserWhy() {
         shell("device_config put activity_manager data_sync_fgs_timeout_duration 3000")
+        shell("logcat -c")
 
         val error = AtomicReference<String?>()
         val failed = CountDownLatch(1)
@@ -83,6 +84,10 @@ class ExportTimeoutTest {
         broadcasts.unregisterReceiver(receiver)
 
         assertEquals(context.getString(R.string.export_stopped_time_limit), error.get())
+        // La cancelación no es un fallo de FFmpeg: no debe dejar un error ni un reporte de diagnóstico.
+        Thread.sleep(2_000)
+        val errors = shell("logcat -d -s FFmpegRenderEngine:E")
+        assertTrue("la cancelación se registró como fallo:\n$errors", !errors.contains("Exception during FFmpeg execution"))
     }
 
     @Test
@@ -114,9 +119,8 @@ class ExportTimeoutTest {
         assertEquals("quedó un proxy a medias", emptyList<String>(), proxies.list()?.toList() ?: emptyList<String>())
     }
 
-    private fun shell(command: String) {
+    private fun shell(command: String): String =
         // Leer la salida completa es lo que espera a que el comando termine.
         ParcelFileDescriptor.AutoCloseInputStream(instrumentation.uiAutomation.executeShellCommand(command))
-            .use { it.readBytes() }
-    }
+            .use { String(it.readBytes()) }
 }

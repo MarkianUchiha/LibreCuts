@@ -88,9 +88,13 @@ class ExportService : Service() {
                     }
                 )
 
+                // Si Android cortó el servicio, onTimeout ya avisó; un segundo aviso lo contradiría.
+                if (stoppedBySystem) return@launch
                 when (result) {
                     is FFmpegRenderEngine.RenderResult.Success -> {
                         val savedUri = saveVideoToGallery(tempFile, isAudioOnly)
+                        // La copia a la galería bloquea y no ve la cancelación: el corte puede llegar durante ella.
+                        if (stoppedBySystem) return@launch
                         if (savedUri != null) {
                             showCompletionNotification("Export Complete", "Video saved to gallery", savedUri)
                             broadcastSuccess(savedUri.toString())
